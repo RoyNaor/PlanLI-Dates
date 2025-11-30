@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { authenticate, AuthRequest } from './middleware/auth.middleware';
 
 dotenv.config();
 
@@ -21,6 +22,13 @@ app.get('/', (req: Request, res: Response) => {
 // Health Check
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// Protected Route Example
+// We cast req to AuthRequest inside to avoid Express type mismatch
+app.get('/api/protected', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  res.json({ message: 'You are authenticated!', uid: authReq.user?.uid });
 });
 
 // Connect to MongoDB and Start Server
