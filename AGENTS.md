@@ -1,4 +1,3 @@
-```markdown
 # AGENTS.md - PlanLI Dates AI Developer Configuration
 
 ## 🤖 Agent Persona
