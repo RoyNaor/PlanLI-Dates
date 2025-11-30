@@ -19,7 +19,7 @@
 
 ## 2. Development Roadmap (MVP)
 
-### 🟢 Phase 1: Core Infrastructure & AI Proof (CURRENT PHASE)
+### 🟢 Phase 1: Core Infrastructure & AI Proof 
 *Goal: Prove the AI logic works before polishing the UI.*
 
 | Task ID | Task Name | Tech / Details |
