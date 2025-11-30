@@ -8,8 +8,10 @@ export const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      await AuthService.signIn(email, password);
-      Alert.alert('Success', 'Logged in successfully!');
+      const user = await AuthService.signIn(email, password);
+      const token = await user.getIdToken();
+      console.log('User Token:', token);
+      Alert.alert('Success', 'Logged in successfully! Token logged to console.');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
