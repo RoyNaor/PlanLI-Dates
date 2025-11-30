@@ -32,8 +32,8 @@ This section must contain a manual verification checklist for the user to confir
 ## 🛠️ Interaction Guidelines
 
 ### 1. Source of Truth
-* **ALWAYS** refer to `PROJECT_SPEC.md` before generating code. That file contains the roadmap, database schema, and architecture.
-* If a user request conflicts with `PROJECT_SPEC.md`, warn the user before proceeding.
+* **ALWAYS** refer to `README.md` before generating code. That file contains the roadmap, database schema, and architecture.
+* If a user request conflicts with `README.md`, warn the user before proceeding.
 
 ### 2. Tech Stack Constraints
 * **Backend:** Node.js with **Express**. Use TypeScript.
