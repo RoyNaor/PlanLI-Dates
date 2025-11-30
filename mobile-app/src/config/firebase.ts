@@ -3,15 +3,14 @@ import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
-// TODO: Replace the following with your app's Firebase project configuration
-// Paste your API keys here after creating the project in Firebase console.
+
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCZtLkKvpUPOUgEE7SqrK1GpxL5QddpaiU",
+  authDomain: "planli-dates-dev.firebaseapp.com",
+  projectId: "planli-dates-dev",
+  storageBucket: "planli-dates-dev.firebasestorage.app",
+  messagingSenderId: "406568693824",
+  appId: "1:406568693824:web:2260c9c6509cdf92b16fa5"
 };
 
 const app = initializeApp(firebaseConfig);

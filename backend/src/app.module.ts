@@ -22,6 +22,8 @@ import { PlacesModule } from './places/places.module';
     AuthModule,
     UsersModule,
     PlacesModule,
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/planli-dates'),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
