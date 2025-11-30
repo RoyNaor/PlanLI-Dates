@@ -12,7 +12,7 @@
 **Core Value:** An AI-powered dating planner that finds the perfect meeting point ($L_{mid}$) between two users ($L_1, L_2$) and suggests a ranked list of venues based on shared preferences, powered by OpenAI.
 
 **Folder Structure:**
-- `/backend`: NestJS application (API, Logic, DB connection).
+- `/backend`: Node.js + Express application (API, Logic, DB connection).
 - `/mobile-app`: React Native application (UI/UX).
 
 ---
@@ -24,10 +24,10 @@
 
 | Task ID | Task Name | Tech / Details |
 | :--- | :--- | :--- |
-| **1.1** | **Project Setup** | Initialize NestJS (Backend) & React Native (Mobile). Setup TypeScript. |
+| **1.1** | **Project Setup** | Initialize Node.js Express (Backend) & React Native (Mobile). Setup TypeScript. |
 | **1.2** | **Auth Setup** | Integrate Firebase Auth (Basic Email/Password or Google). |
-| **1.3** | **Data Modeling** | Create MongoDB Schemas: `User` (Profile), `Place` (Cache/Reviews). |
-| **1.4** | **Geo-Logic** | Implement $L_{mid}$ (Midpoint) calculation service in NestJS. |
+| **1.3** | **Data Modeling** | Create Mongoose Schemas: `User` (Profile), `Place` (Cache/Reviews). |
+| **1.4** | **Geo-Logic** | Implement $L_{mid}$ (Midpoint) calculation logic in Backend. |
 | **1.5** | **AI Logic (Core)** | **CRITICAL:** Build Endpoint taking 2 locations + preferences -> OpenAI API -> Returns JSON recommendations. |
 | **1.6** | **Basic Input UI** | Simple "Ugly" screen to input 2 locations & trigger the AI. |
 
@@ -58,7 +58,7 @@
 
 ### Backend (Server)
 * **Runtime:** Node.js
-* **Framework:** NestJS (TypeScript)
+* **Framework:** Express.js (with TypeScript)
 * **Database:** MongoDB (via Mongoose)
 * **AI Engine:** OpenAI API (GPT-4o or Turbo)
 * **Geo Data:** Google Maps Platform (Places API, Geocoding)
