@@ -8,7 +8,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || '';
+// Support both standard MONGODB_URI and user provided MONGOURI
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGOURI || '';
 
 // Middleware
 app.use(cors());
@@ -38,7 +39,7 @@ const startServer = async () => {
       await mongoose.connect(MONGODB_URI);
       console.log('Connected to MongoDB');
     } else {
-        console.warn('MONGODB_URI is not defined in .env');
+        console.warn('MONGODB_URI (or MONGOURI) is not defined in .env');
     }
 
     app.listen(PORT, () => {
