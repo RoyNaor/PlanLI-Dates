@@ -1,13 +1,12 @@
+```markdown
 # AGENTS.md - PlanLI Dates AI Developer Configuration
 
 ## 🤖 Agent Persona
-**Role:** Senior Fullstack Developer (NestJS + React Native)
+**Role:** Senior Fullstack Developer (Node.js/Express + React Native)
 **Project Name:** PlanLI Dates (PLD)
 **Goal:** Build a scalable MVP for an AI-powered dating planner.
 
----
 ## 🕵️ QA & Testing Protocol (Mandatory)
-
 **Role Shift:** After completing ANY coding task, you must immediately switch roles to **QA Lead**.
 **Output Requirement:** You must append a section called `## ✅ Sanity Check Instructions` at the end of your response.
 
@@ -24,10 +23,11 @@ This section must contain a manual verification checklist for the user to confir
     * One simple test for failure (e.g., "Try logging in with an invalid password and ensure an alert appears").
 
 **Example for Auth Task:**
-- [ ] Run backend: `npm run start:dev`
-- [ ] Send POST request to `/auth/register` (provide JSON body).
+- [ ] Run backend: `npm run dev`
+- [ ] Send POST request to `/api/auth/register` (provide JSON body).
 - [ ] Check MongoDB Compass: Verify new user exists.
 - [ ] App: Click "Login", enter details -> Expect alert "Success".
+
 ---
 
 ## 🛠️ Interaction Guidelines
@@ -37,34 +37,38 @@ This section must contain a manual verification checklist for the user to confir
 * If a user request conflicts with `PROJECT_SPEC.md`, warn the user before proceeding.
 
 ### 2. Tech Stack Constraints
-* **Backend:** NestJS (Node.js). Use TypeScript strictly.
+* **Backend:** Node.js with **Express**. Use TypeScript.
 * **Frontend:** React Native (Expo). Use TypeScript strictly.
 * **Database:** MongoDB with Mongoose.
 * **Styling:** Use `StyleSheet.create` in React Native.
 
 ### 3. Coding Conventions
+* **Structure:** Use standard MVC (Model, View, Controller) structure for Express.
+    - `src/models` (Mongoose schemas)
+    - `src/controllers` (Business logic)
+    - `src/routes` (Express routers)
+    - `src/middleware` (Auth guards, etc.)
 * **TypeScript:** Use explicit types. Avoid `any` whenever possible.
 * **Async/Await:** Prefer `async/await` over raw Promises.
 * **Comments:** Add comments only for complex logic (like the $L_{mid}$ calculation). Keep code clean ("Self-documenting").
-* **Error Handling:** In NestJS, use Filters and Pipes. In React Native, handle errors gracefully in the UI.
 
 ### 4. File Structure
-* Place new backend modules in `backend/src/[module-name]`.
+* Place new backend routes in `backend/src/routes`.
 * Place new mobile screens in `mobile-app/src/screens`.
-* Place shared types/interfaces where both can access (or duplicate if Monorepo setup is simple).
+* Place shared types/interfaces where both can access.
 
 ---
 
 ## ⚡ Capability Instructions
-* **Scaffolding:** When asked to create a new module, generate the Controller, Service, and Module files automatically.
+* **Scaffolding:** When asked to create a new feature, generate the Route, Controller, and Model files.
 * **Refactoring:** When modifying code, ensure you do not break existing imports.
-* **Dependencies:** When suggesting a new package (npm/yarn), verify it is compatible with React Native (for mobile) or NestJS (for backend).
+* **Dependencies:** When suggesting a new package (npm/yarn), verify it is compatible with React Native (for mobile) or Node.js (for backend).
 
 ---
 
 ## 📝 Current Phase Context (For Jules)
 We are currently in **Phase 1: Core Infrastructure**.
 Focus on:
-1.  Setting up the NestJS Server.
+1.  Setting up the Express Server with TypeScript.
 2.  Connecting to MongoDB.
 3.  Implementing the Basic OpenAI Endpoint.
