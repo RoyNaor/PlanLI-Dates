@@ -1,40 +1,71 @@
 import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Text, FlatList, TouchableOpacity } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { View, StyleSheet, Text, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE, Callout } from 'react-native-maps';
+import { colors, globalStyles } from '../theme/styles'; // וודא שיש לך את זה
+
+const { width } = Dimensions.get('window');
 
 export const DateResultsScreen = ({ route, navigation }: any) => {
-  const { result } = route.params;
-  const { l1, l2, lmid, aiSuggestions } = result.data;
+  // קבלה בטוחה של הנתונים
+  const result = route.params?.result?.data || route.params?.result;
+  
+  if (!result) {
+      return (
+          <View style={styles.container}>
+              <Text>Error loading results.</Text>
+          </View>
+      );
+  }
+
+  const { l1, l2, lmid, aiSuggestions } = result;
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
-    if (mapRef.current) {
-        // Collect all coordinates to fit map
-        const coords = [
+    if (mapRef.current && aiSuggestions.length > 0) {
+        // איסוף כל הנקודות כדי למרכז את המפה
+        const points = [
             { latitude: l1.lat, longitude: l1.lng },
             { latitude: l2.lat, longitude: l2.lng },
-            { latitude: lmid.lat, longitude: lmid.lng },
-            ...aiSuggestions.map((s: any) => s.placeDetails ? ({
-                latitude: s.placeDetails.geometry.location.lat,
-                longitude: s.placeDetails.geometry.location.lng
-            }) : null).filter((c: any) => c)
+            // מסננים רק מקומות שיש להם פרטים מגוגל
+            ...aiSuggestions
+                .filter((s: any) => s.placeDetails?.geometry?.location)
+                .map((s: any) => ({
+                    latitude: s.placeDetails.geometry.location.lat,
+                    longitude: s.placeDetails.geometry.location.lng
+                }))
         ];
 
-      mapRef.current.fitToCoordinates(coords, {
-        edgePadding: { top: 100, right: 50, bottom: 300, left: 50 }, // Bottom padding for sheet
+      mapRef.current.fitToCoordinates(points, {
+        edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
         animated: true,
       });
     }
   }, []);
 
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.card}>
-      <Text style={styles.placeName}>{item.name}</Text>
-      <Text style={styles.rating}>⭐ {item.placeDetails?.rating || 'N/A'} ({item.placeDetails?.user_ratings_total || 0})</Text>
-      <Text style={styles.address} numberOfLines={1}>{item.placeDetails?.formatted_address}</Text>
-      <Text style={styles.desc} numberOfLines={3}>{item.description}</Text>
-    </View>
-  );
+  const renderItem = ({ item }: { item: any }) => {
+    // אם אין פרטים מגוגל, נציג מידע חלקי (או נדלג)
+    const details = item.placeDetails;
+    const rating = details?.rating ? `⭐ ${details.rating} (${details.user_ratings_total})` : '';
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.matchScore}>{item.matchScore}% Match</Text>
+            </View>
+            
+            <Text style={styles.address} numberOfLines={1}>
+                {details?.formatted_address || "Address not available"}
+            </Text>
+            
+            {rating ? <Text style={styles.rating}>{rating}</Text> : null}
+            
+            <Text style={styles.desc} numberOfLines={3}>
+                "{item.description}"
+            </Text>
+        </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -43,12 +74,15 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
         provider={PROVIDER_GOOGLE}
         style={styles.map}
       >
+        {/* המיקומים שלכם */}
         <Marker coordinate={{ latitude: l1.lat, longitude: l1.lng }} title="You" pinColor="blue" />
         <Marker coordinate={{ latitude: l2.lat, longitude: l2.lng }} title="Them" pinColor="red" />
         <Marker coordinate={{ latitude: lmid.lat, longitude: lmid.lng }} title="Midpoint" pinColor="yellow" />
 
+        {/* המקומות המומלצים */}
         {aiSuggestions.map((item: any, index: number) => {
-            if (!item.placeDetails) return null;
+            if (!item.placeDetails?.geometry?.location) return null;
+            
             return (
                 <Marker
                     key={index}
@@ -56,25 +90,37 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
                         latitude: item.placeDetails.geometry.location.lat,
                         longitude: item.placeDetails.geometry.location.lng
                     }}
-                    title={item.name}
-                    pinColor="purple"
-                />
+                    pinColor={colors.primary} // סגול/ורוד של המותג
+                >
+                    <Callout>
+                        <View style={{ width: 150 }}>
+                            <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
+                            <Text style={{ fontSize: 12 }}>{item.matchScore}% Match</Text>
+                        </View>
+                    </Callout>
+                </Marker>
             );
         })}
       </MapView>
 
+      {/* כרטיסיית התוצאות למטה */}
       <View style={styles.bottomSheet}>
-        <Text style={styles.resultsTitle}>Top Picks For You</Text>
+        <View style={styles.handle} />
+        <Text style={styles.resultsTitle}>Top Picks For You ✨</Text>
+        
         <FlatList
           data={aiSuggestions}
           renderItem={renderItem}
-          keyExtractor={(item) => item.name}
+          keyExtractor={(item, index) => index.toString()}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10 }}
+          contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 20 }}
+          snapToInterval={300} // רוחב הכרטיס + מרווח
+          decelerationRate="fast"
         />
+        
         <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Text style={{color: '#C2185B', fontWeight: 'bold'}}>New Search</Text>
+            <Text style={styles.closeButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -94,59 +140,95 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '35%',
+    height: '40%', // קצת יותר גבוה
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingVertical: 20,
-    // Shadow
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 20,
+  },
+  handle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 10,
   },
   resultsTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginLeft: 20,
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 15,
+    color: colors.text,
   },
   card: {
     width: 280,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
     marginRight: 15,
     borderWidth: 1,
     borderColor: '#eee',
-    justifyContent: 'space-between'
+    // Shadow light
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   placeName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
-    marginBottom: 5,
     color: '#000',
+    flex: 1,
+  },
+  matchScore: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.primary,
+    backgroundColor: '#FCE4EC',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   rating: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    fontSize: 13,
+    color: '#F57F17', // Gold color for stars
+    marginBottom: 4,
+    fontWeight: '600',
   },
   address: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 5,
+    fontSize: 13,
+    color: '#757575',
+    marginBottom: 8,
   },
   desc: {
-    fontSize: 12,
-    color: '#444',
+    fontSize: 13,
+    color: '#424242',
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   closeButton: {
       alignItems: 'center',
-      marginTop: 10,
-      padding: 10
+      paddingVertical: 15,
+      borderTopWidth: 1,
+      borderTopColor: '#f0f0f0',
+      marginTop: 5
+  },
+  closeButtonText: {
+      color: colors.primary,
+      fontWeight: 'bold',
+      fontSize: 16
   }
 });

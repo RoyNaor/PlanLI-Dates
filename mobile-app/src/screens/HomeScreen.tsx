@@ -14,7 +14,7 @@ export const HomeScreen = ({ navigation }: any) => {
       <Button title="Logout" onPress={handleLogout} />
       <Button 
         title="➕ Plan a New Date" 
-        onPress={() => navigation.navigate('CreateDate')} 
+        onPress={() => navigation.navigate('DateSetup')} 
         color="#C2185B"
       />
     </View>

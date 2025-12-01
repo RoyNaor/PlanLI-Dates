@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
 
 export interface Location {
   lat: number;
@@ -12,14 +12,25 @@ interface Props {
   placeholder: string;
   onLocationSelected: (location: Location) => void;
   zIndex?: number;
+  value?: string; // חיוני כדי שהטקסט יישאר בשדה
 }
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1 }: Props) => {
+export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, value }: Props) => {
+  const ref = useRef<GooglePlacesAutocompleteRef>(null);
+
+  // עדכון הטקסט בשדה אם הערך החיצוני משתנה
+  useEffect(() => {
+    if (value) {
+      ref.current?.setAddressText(value);
+    }
+  }, [value]);
+
   return (
     <View style={[styles.container, { zIndex }]}>
       <GooglePlacesAutocomplete
+        ref={ref}
         placeholder={placeholder}
         fetchDetails={true}
         onPress={(data, details = null) => {
@@ -33,14 +44,22 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1 }: 
         }}
         query={{
           key: GOOGLE_MAPS_API_KEY,
-          language: 'en',
+          language: 'he', // שפת ממשק: עברית
+          components: 'country:il', // מיקוד: ישראל
         }}
         styles={{
           textInput: styles.input,
           listView: styles.listView,
           container: { flex: 0 },
+          row: { backgroundColor: '#fff', direction: 'rtl' }, // כיוון שורה
+          description: { color: '#333', textAlign: 'right' }, // טקסט תוצאות לימין
+        }}
+        textInputProps={{
+            textAlign: 'right', // טקסט קלט לימין
+            placeholderTextColor: '#999'
         }}
         enablePoweredByContainer={false}
+        debounce={200}
       />
     </View>
   );
@@ -48,17 +67,17 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1 }: 
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 10,
+    marginBottom: 15,
     width: '100%',
   },
   input: {
     height: 50,
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: '#FAFAFA', // רקע אפרפר מודרני יותר
+    borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#E0E0E0',
     color: '#333',
     // shadow
     shadowColor: '#000',
@@ -66,6 +85,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    textAlign: 'right', // חשוב לעברית
   },
   listView: {
     backgroundColor: '#fff',
@@ -81,8 +101,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     position: 'absolute',
     top: 50,
-    left: 0,
-    right: 0,
+    width: '100%',
     zIndex: 999,
   }
 });
