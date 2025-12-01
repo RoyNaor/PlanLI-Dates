@@ -18,7 +18,6 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
     const searchRadiusMeters = Math.max(1000, (distanceKm * 1000) * 0.15);
 
     const aiSuggestions = await generateDateIdeas(midPoint, preferences || '');
-
     res.status(200).json({
       success: true,
       data: {

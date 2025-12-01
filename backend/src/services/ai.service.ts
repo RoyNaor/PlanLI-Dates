@@ -20,10 +20,12 @@ export const generateDateIdeas = async (
   preferences: string
 ): Promise<AiRecommendation[]> => {
   try {
+    console.log('AI Suggestions is loading');
     const prompt = `
       Coordinates: Latitude ${lmid.lat}, Longitude ${lmid.lng}.
       Preferences: ${preferences || "General date spots, romantic, safe"}.
     `;
+    console.log('AI Prompt:', prompt);
 
     const completion = await openai.chat.completions.create({
       messages: [

@@ -12,6 +12,11 @@ export const HomeScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to PlanLI!</Text>
       <Button title="Logout" onPress={handleLogout} />
+      <Button 
+        title="➕ Plan a New Date" 
+        onPress={() => navigation.navigate('CreateDate')} 
+        color="#C2185B"
+      />
     </View>
   );
 };

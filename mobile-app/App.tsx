@@ -7,6 +7,7 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { auth } from './src/config/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ActivityIndicator, View } from 'react-native';
+import { CreateDateScreen } from './src/screens/CreateDateScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="CreateDate" component={CreateDateScreen} options={{ title: 'Plan Date' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
