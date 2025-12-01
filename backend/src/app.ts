@@ -9,8 +9,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// Support both standard MONGODB_URI and user provided MONGOURI
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGOURI || '';
+const MONGODB_URI = process.env.MONGOURI || '';
 
 // Middleware
 app.use(cors());
