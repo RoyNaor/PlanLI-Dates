@@ -1,201 +1,154 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
-  StyleSheet, 
-  Button, 
   Text, 
-  Alert, 
+  StyleSheet, 
   TouchableOpacity, 
+  Alert, 
   ActivityIndicator, 
-  FlatList, // <--- חובה להשתמש בזה
+  Dimensions,
+  Platform,
   KeyboardAvoidingView,
-  Platform
+  FlatList // <--- הרכיב שיציל אותנו מהשגיאה
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
+import Slider from '@react-native-community/slider';
 import { LocationSearch, Location } from '../components/LocationSearch';
 import { ApiService } from '../services/api';
-import { colors, globalStyles } from '../theme/styles'; // וודא שהאימפורט הזה קיים אצלך
+import { colors, globalStyles } from '../theme/styles';
+import { getCenterPoint } from '../utils/geo'; 
+import { StepLocation } from '../components/StepLocation';
+import { StepRadius } from '../components/StepRadius';
+import { StepVibe } from '../components/StepVibe';
 
-const BUDGETS = ['$', '$$', '$$$'];
-const VIBES = ['Romantic', 'Casual', 'Cocktails', 'Activity', 'Coffee'];
+const { width } = Dimensions.get('window');
 
 export const DateSetupScreen = ({ navigation }: any) => {
+  // --- State ---
+  const [step, setStep] = useState(1);
+  const totalSteps = 3;
+
   const [l1, setL1] = useState<Location | null>(null);
   const [l2, setL2] = useState<Location | null>(null);
   const [strategy, setStrategy] = useState<'MIDPOINT' | 'NEAR_ME' | 'NEAR_THEM'>('MIDPOINT');
-  const [selectedBudget, setSelectedBudget] = useState('$$');
-  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
+  const [radius, setRadius] = useState(2000);
+  const [budget, setBudget] = useState('$$');
+  const [vibes, setVibes] = useState<string[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>([]); // חובה להוסיף את זה ל-Vibe
   const [loading, setLoading] = useState(false);
-  
-  const mapRef = useRef<MapView>(null);
 
-  // זום אוטומטי למפה
-  useEffect(() => {
-    if (l1 && l2 && mapRef.current) {
-      mapRef.current.fitToCoordinates([
-        { latitude: l1.lat, longitude: l1.lng },
-        { latitude: l2.lat, longitude: l2.lng }
-      ], {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true,
-      });
-    } else if (l1 && mapRef.current) {
-        mapRef.current.animateToRegion({
-            latitude: l1.lat,
-            longitude: l1.lng,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-        });
-    }
-  }, [l1, l2]);
-
-  const toggleVibe = (vibe: string) => {
-    if (selectedVibes.includes(vibe)) {
-      setSelectedVibes(selectedVibes.filter(v => v !== vibe));
-    } else {
-      setSelectedVibes([...selectedVibes, vibe]);
-    }
-  };
-
-  const handleCalculate = async () => {
-    if (!l1 || !l2) {
-      Alert.alert('חסרים נתונים', 'אנא בחר את שני המיקומים');
-      return;
-    }
-
+  // --- Handlers ---
+  const handleFinish = async () => {
     setLoading(true);
     try {
-        const preferences = `${selectedBudget} budget, ${selectedVibes.join(', ')}`;
-        const result = await ApiService.post('/dates/calculate', {
+        const vibeString = vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : '';
+        const cuisineString = cuisines.length > 0 ? `Cuisine: ${cuisines.join(', ')}` : '';
+        const preferences = `${budget} budget. ${vibeString}. ${cuisineString}.`;
+
+        const payload = {
             l1,
             l2,
             strategy,
+            radius,
             preferences
-        });
+        };
 
-        navigation.navigate('DateResults', { result: result.data || result }); // תמיכה במבנה תשובה שונה
+        const result = await ApiService.post('/dates/calculate', payload);
+        navigation.navigate('DateResults', { result: result.data || result });
+
     } catch (e: any) {
-        console.error(e);
         Alert.alert("Error", e.message);
     } finally {
         setLoading(false);
     }
   };
 
-  // --- כל התוכן של המסך נכנס לפה ---
-  const renderContent = () => (
+  const handleNext = () => {
+    if (step === 1 && (!l1 || !l2)) {
+        Alert.alert('חסר מידע', 'אנא בחר את שני המיקומים כדי להמשיך');
+        return;
+    }
+    setStep(step + 1);
+  };
+
+  // --- Render Functions ---
+  const renderProgressBar = () => {
+    const progress = (step / totalSteps) * 100;
+    return (
+        <View style={styles.progressContainer}>
+            <View style={styles.progressBarBackground}>
+                <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+            </View>
+            <Text style={styles.stepText}>שלב {step} מתוך {totalSteps}</Text>
+        </View>
+    );
+  };
+
+  // זו הפונקציה הראשית שמכילה את כל ה-UI של המסך
+  const renderScreenContent = () => (
     <View style={styles.contentContainer}>
-      <Text style={styles.title}>Plan a Date</Text>
+        {renderProgressBar()}
 
-      {/* מיקומים (עם Z-Index גבוה כדי שיצופו מעל המפה והכפתורים) */}
-      <View style={{ zIndex: 2000, marginBottom: 10 }}>
-        <Text style={styles.label}>Where are you?</Text>
-        <LocationSearch
-            placeholder="חפש את הכתובת שלך..."
-            onLocationSelected={setL1}
-            zIndex={2000}
-            value={l1?.address}
-        />
-      </View>
-      
-      <View style={{ zIndex: 1000, marginBottom: 20 }}>
-        <Text style={styles.label}>Where are they?</Text>
-        <LocationSearch
-            placeholder="חפש את הכתובת שלהם..."
-            onLocationSelected={setL2}
-            zIndex={1000}
-            value={l2?.address}
-        />
-      </View>
-
-      {/* אסטרטגיה */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Where to meet?</Text>
-        <View style={styles.row}>
-            {['MIDPOINT', 'NEAR_ME', 'NEAR_THEM'].map((s) => (
-                <TouchableOpacity
-                    key={s}
-                    style={[styles.chip, strategy === s && styles.chipSelected]}
-                    onPress={() => setStrategy(s as any)}
-                >
-                    <Text style={[styles.chipText, strategy === s && styles.chipTextSelected]}>
-                        {s === 'MIDPOINT' ? '⚖️ Midpoint' : s === 'NEAR_ME' ? '📍 Near Me' : '🏠 Near Them'}
-                    </Text>
-                </TouchableOpacity>
-            ))}
-        </View>
-      </View>
-
-      {/* תקציב */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Budget</Text>
-        <View style={styles.row}>
-            {BUDGETS.map((b) => (
-                <TouchableOpacity
-                    key={b}
-                    style={[styles.chip, selectedBudget === b && styles.chipSelected]}
-                    onPress={() => setSelectedBudget(b)}
-                >
-                    <Text style={[styles.chipText, selectedBudget === b && styles.chipTextSelected]}>{b}</Text>
-                </TouchableOpacity>
-            ))}
-        </View>
-      </View>
-
-      {/* אווירה (Vibe) */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Vibe</Text>
-        <View style={styles.row}>
-            {VIBES.map((v) => (
-                <TouchableOpacity
-                    key={v}
-                    style={[styles.chip, selectedVibes.includes(v) && styles.chipSelected]}
-                    onPress={() => toggleVibe(v)}
-                >
-                    <Text style={[styles.chipText, selectedVibes.includes(v) && styles.chipTextSelected]}>{v}</Text>
-                </TouchableOpacity>
-            ))}
-        </View>
-      </View>
-
-      {/* מפה קטנה לתצוגה מקדימה */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={{
-            latitude: 32.0853,
-            longitude: 34.7818,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-        }}
-      >
-        {l1 && <Marker coordinate={{ latitude: l1.lat, longitude: l1.lng }} title="You" pinColor="blue" />}
-        {l2 && <Marker coordinate={{ latitude: l2.lat, longitude: l2.lng }} title="Them" pinColor="red" />}
-      </MapView>
-
-      {/* כפתור פעולה */}
-      <View style={styles.buttonContainer}>
-        {loading ? (
-            <ActivityIndicator size="large" color="#C2185B" />
-        ) : (
-            <TouchableOpacity style={styles.mainButton} onPress={handleCalculate}>
-                <Text style={styles.mainButtonText}>Find Perfect Spot 🚀</Text>
-            </TouchableOpacity>
+        {step === 1 && (
+            <StepLocation 
+                l1={l1} setL1={setL1} 
+                l2={l2} setL2={setL2} 
+                strategy={strategy} setStrategy={setStrategy} 
+            />
         )}
-      </View>
+
+        {step === 2 && (
+            <StepRadius 
+                radius={radius} 
+                setRadius={setRadius} 
+                center={getCenterPoint(l1, l2, strategy)} 
+            />
+        )}
+
+        {step === 3 && (
+            <StepVibe 
+                budget={budget} setBudget={setBudget} 
+                vibes={vibes} setVibes={setVibes} 
+                cuisines={cuisines} setCuisines={setCuisines} 
+            />
+        )}
     </View>
   );
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#fff' }}>
+    <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={{ flex: 1, backgroundColor: '#fff' }}
+    >
       <FlatList
-        data={[]} 
+        data={[]}
         renderItem={null}
-        ListHeaderComponent={renderContent}
-        keyboardShouldPersistTaps="handled" // <--- זה הפתרון לבאג התקיעה!
-        contentContainerStyle={{ paddingBottom: 40 }}
+        ListHeaderComponent={renderScreenContent}
+        keyboardShouldPersistTaps="handled" // קריטי כדי שהלחיצה על הכתובת תעבוד
+        contentContainerStyle={{ paddingBottom: 100 }} // מקום לכפתורים למטה
       />
+
+      {/* Footer (כפתורי ניווט) */}
+      <View style={styles.footer}>
+        {step > 1 ? (
+            <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
+                <Text style={{color: '#666', fontWeight: 'bold'}}>אחורה</Text>
+            </TouchableOpacity>
+        ) : <View style={{width: 70}} />} 
+
+        <TouchableOpacity 
+            style={styles.nextBtn} 
+            onPress={() => step < totalSteps ? handleNext() : handleFinish()}
+        >
+            {loading ? (
+                <ActivityIndicator color="#fff" />
+            ) : (
+                <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
+                    {step < totalSteps ? 'המשך ➜' : 'מצא לי דייט! 🎉'}
+                </Text>
+            )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -204,73 +157,66 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#C2185B',
+  progressContainer: {
     marginBottom: 25,
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#333',
-  },
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#FAFAFA',
-  },
-  chipSelected: {
-    backgroundColor: '#C2185B',
-    borderColor: '#C2185B',
-  },
-  chipText: {
-    color: '#555',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  chipTextSelected: {
-    color: '#fff',
-  },
-  map: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  buttonContainer: {
-    marginTop: 10,
-  },
-  mainButton: {
-    backgroundColor: '#C2185B',
-    paddingVertical: 18,
-    borderRadius: 16,
     alignItems: 'center',
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 3,
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  stepText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '600',
+  },
+  // Footer Styles
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+    paddingBottom: 30, // קצת מרווח לאייפונים חדשים
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    // Shadow
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  backBtn: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+  },
+  nextBtn: {
+    flex: 1,
+    marginLeft: 15,
+    paddingVertical: 15,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 6,
-  },
-  mainButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    elevation: 5,
   },
 });
