@@ -16,22 +16,35 @@ export interface AiRecommendation {
 }
 
 export const generateDateIdeas = async (
-  lmid: Coordinates,
-  preferences: string
+  center: Coordinates,
+  preferences: string,
+  strategy: string,
+  radius: number
 ): Promise<AiRecommendation[]> => {
   try {
-    console.log('AI Suggestions is loading');
+    const strategyContext =
+      strategy === 'NEAR_ME' ? "Focus on the area of User 1 (The Host)." :
+      strategy === 'NEAR_THEM' ? "Focus on the area of User 2 (The Guest)." :
+      "Find a fair meeting point in the middle.";
+
     const prompt = `
-      Coordinates: Latitude ${lmid.lat}, Longitude ${lmid.lng}.
+      Coordinates: Latitude ${center.lat}, Longitude ${center.lng}.
+      Search Radius: ${radius} meters.
+      Strategy: ${strategy} (${strategyContext}).
       Preferences: ${preferences || "General date spots, romantic, safe"}.
     `;
-    console.log('AI Prompt:', prompt);
+
+    const systemPrompt = `You are an expert local guide that have experience finding good dates locations.
+    Task: Suggest 3 venues. IMPORTANT: You must prioritize well-established, long-standing venues to avoid suggesting places that might have permanently closed recently.
+    Context: ${strategyContext}
+    Based on the provided coordinates (Latitude, Longitude), suggest 3 specific real venues nearby that match the user preferences.
+    You must return strict JSON. Output format: { "recommendations": [{ "name": "...", "address": "...", "description": "...", "matchScore": 95 }] }`;
 
     const completion = await openai.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: "You are an expert dating concierge. Based on the provided coordinates (Latitude, Longitude), suggest 3 specific real venues nearby that match the user preferences. You must return strict JSON. Output format: { \"recommendations\": [{ \"name\": \"...\", \"address\": \"...\", \"description\": \"...\", \"matchScore\": 95 }] }"
+          content: systemPrompt
         },
         { role: "user", content: prompt }
       ],
