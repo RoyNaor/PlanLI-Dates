@@ -14,11 +14,15 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import { ApiService } from '../services/api';
 import { colors, globalStyles } from '../theme/styles';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 export const RegisterScreen = ({ navigation }: any) => {
+  const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +31,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const handleRegister = async () => {
     if (!email || !password || !name) {
-      Alert.alert('Missing Info', 'Please fill in all fields');
+      Alert.alert(t('register.missingInfoTitle'), t('register.missingInfoMsg'));
       return;
     }
 
@@ -39,11 +43,11 @@ export const RegisterScreen = ({ navigation }: any) => {
       // 2. יצירת משתמש ב-MongoDB
       await ApiService.post('/users/register', { name });
 
-      Alert.alert('Success', 'Account created successfully!');
+      Alert.alert(t('register.successTitle'), t('register.successMsg'));
       navigation.replace('Home');
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Registration Error', error.message);
+      Alert.alert(t('register.errorTitle'), error.message);
     } finally {
       setLoading(false);
     }
@@ -75,15 +79,15 @@ export const RegisterScreen = ({ navigation }: any) => {
               />
             </View>
 
-            <Text style={styles.welcomeText}>Create Account</Text>
-            <Text style={styles.subText}>Join PlanLI and start dating smarter</Text>
+            <Text style={styles.welcomeText}>{t('register.title')}</Text>
+            <Text style={styles.subText}>{t('register.subText')}</Text>
 
             {/* שדה שם מלא (חדש!) */}
-            <View style={styles.inputWrapper}>
-              <MaterialCommunityIcons name="account-outline" size={20} color={colors.textLight} style={styles.icon} />
+            <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="account-outline" size={20} color={colors.textLight} style={[styles.icon, isRTL ? { marginLeft: 10, marginRight: 0 } : { marginRight: 10 }]} />
               <TextInput
-                style={styles.input}
-                placeholder="Full Name"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('register.fullName')}
                 placeholderTextColor="#999"
                 value={name}
                 onChangeText={setName}
@@ -92,11 +96,11 @@ export const RegisterScreen = ({ navigation }: any) => {
             </View>
 
             {/* שדה אימייל */}
-            <View style={styles.inputWrapper}>
-              <MaterialCommunityIcons name="email-outline" size={20} color={colors.textLight} style={styles.icon} />
+            <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="email-outline" size={20} color={colors.textLight} style={[styles.icon, isRTL ? { marginLeft: 10, marginRight: 0 } : { marginRight: 10 }]} />
               <TextInput
-                style={styles.input}
-                placeholder="Email Address"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('register.email')}
                 placeholderTextColor="#999"
                 value={email}
                 onChangeText={setEmail}
@@ -106,11 +110,11 @@ export const RegisterScreen = ({ navigation }: any) => {
             </View>
 
             {/* שדה סיסמה */}
-            <View style={styles.inputWrapper}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color={colors.textLight} style={styles.icon} />
+            <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="lock-outline" size={20} color={colors.textLight} style={[styles.icon, isRTL ? { marginLeft: 10, marginRight: 0 } : { marginRight: 10 }]} />
               <TextInput
-                style={styles.input}
-                placeholder="Password"
+                style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder={t('register.password')}
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
@@ -130,15 +134,15 @@ export const RegisterScreen = ({ navigation }: any) => {
               <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
             ) : (
               <TouchableOpacity style={styles.primaryButton} onPress={handleRegister}>
-                <Text style={styles.primaryButtonText}>SIGN UP</Text>
+                <Text style={styles.primaryButtonText}>{t('register.signUpBtn')}</Text>
               </TouchableOpacity>
             )}
 
             {/* קישור חזרה להתחברות */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+            <View style={[styles.footer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.footerText}>{t('register.alreadyHaveAccount')}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.linkText}>Login</Text>
+                <Text style={styles.linkText}>{t('register.loginLink')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -194,7 +198,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   inputWrapper: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   icon: {
-    marginRight: 10,
+    // margins handled inline
   },
   input: {
     flex: 1,
@@ -232,7 +235,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   footer: {
-    flexDirection: 'row',
     marginTop: 25,
   },
   footerText: {

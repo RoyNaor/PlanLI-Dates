@@ -1,0 +1,94 @@
+{
+  "login": {
+    "loading": "Loading PlanLI...",
+    "welcomeBack": "Welcome Back!",
+    "subText": "Plan your perfect date instantly",
+    "emailPlaceholder": "Email Address",
+    "passwordPlaceholder": "Password",
+    "loginBtn": "LOGIN",
+    "newToPlanli": "New to PlanLI? ",
+    "signUp": "Sign Up",
+    "loginFailed": "Login Failed"
+  },
+  "register": {
+    "missingInfoTitle": "Missing Info",
+    "missingInfoMsg": "Please fill in all fields",
+    "successTitle": "Success",
+    "successMsg": "Account created successfully!",
+    "errorTitle": "Registration Error",
+    "title": "Create Account",
+    "subText": "Join PlanLI and start dating smarter",
+    "fullName": "Full Name",
+    "email": "Email Address",
+    "password": "Password",
+    "signUpBtn": "SIGN UP",
+    "alreadyHaveAccount": "Already have an account? ",
+    "loginLink": "Login"
+  },
+  "home": {
+    "welcome": "Welcome to PlanLI!",
+    "logout": "Logout",
+    "planNewDate": "➕ Plan a New Date",
+    "switchLanguage": "Switch Language"
+  },
+  "dateSetup": {
+    "errorTitle": "Error",
+    "missingInfoTitle": "Missing Information",
+    "missingInfoMsg": "Please select both locations to continue",
+    "step": "Step {{step}} of {{total}}",
+    "back": "Back",
+    "next": "Next ➜",
+    "findDate": "Find me a date! 🎉"
+  },
+  "dateResults": {
+    "errorLoading": "Error loading results.",
+    "addressNotAvailable": "Address not available",
+    "match": "Match",
+    "topPicks": "Top Picks For You ✨",
+    "tryAgain": "Try Again"
+  },
+  "stepLocation": {
+    "title": "Let's start with locations 📍",
+    "whereAreYou": "Where are you? (L1)",
+    "yourAddress": "Your address...",
+    "whereAreThey": "Where are they? (L2)",
+    "theirAddress": "Their address...",
+    "whereToMeet": "Where should we meet?",
+    "midpoint": "⚖️ Midpoint",
+    "nearMe": "📍 Near Me",
+    "nearThem": "🏠 Near Them"
+  },
+  "stepRadius": {
+    "title": "Search Radius 📏",
+    "kmAround": "{{km}} km around the target",
+    "min": "500m",
+    "max": "10km"
+  },
+  "stepVibe": {
+    "title": "Set the Mood ✨",
+    "budget": "Budget",
+    "vibe": "Vibe",
+    "cuisine": "Cuisine",
+    "vibes": {
+      "Romantic": "Romantic",
+      "Casual": "Casual",
+      "Cocktail Bar": "Cocktail Bar",
+      "Restaurant": "Restaurant",
+      "Movie": "Movie",
+      "Coffee": "Coffee",
+      "Picnic": "Picnic",
+      "Rooftop": "Rooftop"
+    },
+    "cuisines": {
+      "Italian": "Italian",
+      "Asian": "Asian",
+      "Sushi": "Sushi",
+      "Burger": "Burger",
+      "Pizza": "Pizza",
+      "Meat": "Meat",
+      "Mexican": "Mexican",
+      "Vegan": "Vegan",
+      "Seafood": "Seafood"
+    }
+  }
+}

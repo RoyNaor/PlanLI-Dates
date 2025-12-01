@@ -20,10 +20,14 @@ import { getCenterPoint } from '../utils/geo';
 import { StepLocation } from '../components/StepLocation';
 import { StepRadius } from '../components/StepRadius';
 import { StepVibe } from '../components/StepVibe';
+import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 const { width } = Dimensions.get('window');
 
 export const DateSetupScreen = ({ navigation }: any) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = useIsRTL();
   // --- State ---
   const [step, setStep] = useState(1);
   const totalSteps = 3;
@@ -43,7 +47,9 @@ export const DateSetupScreen = ({ navigation }: any) => {
     try {
         const vibeString = vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : '';
         const cuisineString = cuisines.length > 0 ? `Cuisine: ${cuisines.join(', ')}` : '';
-        const preferences = `${budget} budget. ${vibeString}. ${cuisineString}.`;
+        // 6. Backend Adjustment
+        const langContext = i18n.language === 'he' ? "Output language: Hebrew. " : "";
+        const preferences = `${langContext}${budget} budget. ${vibeString}. ${cuisineString}.`;
 
         const payload = {
             l1,
@@ -57,7 +63,7 @@ export const DateSetupScreen = ({ navigation }: any) => {
         navigation.navigate('DateResults', { result: result.data || result });
 
     } catch (e: any) {
-        Alert.alert("Error", e.message);
+        Alert.alert(t('dateSetup.errorTitle'), e.message);
     } finally {
         setLoading(false);
     }
@@ -65,7 +71,7 @@ export const DateSetupScreen = ({ navigation }: any) => {
 
   const handleNext = () => {
     if (step === 1 && (!l1 || !l2)) {
-        Alert.alert('חסר מידע', 'אנא בחר את שני המיקומים כדי להמשיך');
+        Alert.alert(t('dateSetup.missingInfoTitle'), t('dateSetup.missingInfoMsg'));
         return;
     }
     setStep(step + 1);
@@ -76,10 +82,10 @@ export const DateSetupScreen = ({ navigation }: any) => {
     const progress = (step / totalSteps) * 100;
     return (
         <View style={styles.progressContainer}>
-            <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarBackground, { transform: [{ scaleX: isRTL ? -1 : 1 }] }]}>
                 <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
             </View>
-            <Text style={styles.stepText}>שלב {step} מתוך {totalSteps}</Text>
+            <Text style={styles.stepText}>{t('dateSetup.step', { step, total: totalSteps })}</Text>
         </View>
     );
   };
@@ -129,22 +135,22 @@ export const DateSetupScreen = ({ navigation }: any) => {
       />
 
       {/* Footer (כפתורי ניווט) */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {step > 1 ? (
             <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
-                <Text style={{color: '#666', fontWeight: 'bold'}}>אחורה</Text>
+                <Text style={{color: '#666', fontWeight: 'bold'}}>{t('dateSetup.back')}</Text>
             </TouchableOpacity>
         ) : <View style={{width: 70}} />} 
 
         <TouchableOpacity 
-            style={styles.nextBtn} 
+            style={[styles.nextBtn, { marginLeft: isRTL ? 0 : 15, marginRight: isRTL ? 15 : 0 }]}
             onPress={() => step < totalSteps ? handleNext() : handleFinish()}
         >
             {loading ? (
                 <ActivityIndicator color="#fff" />
             ) : (
                 <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
-                    {step < totalSteps ? 'המשך ➜' : 'מצא לי דייט! 🎉'}
+                    {step < totalSteps ? t('dateSetup.next') : t('dateSetup.findDate')}
                 </Text>
             )}
         </TouchableOpacity>
@@ -185,7 +191,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 20,
     paddingBottom: 30, // קצת מרווח לאייפונים חדשים
@@ -207,7 +212,6 @@ const styles = StyleSheet.create({
   },
   nextBtn: {
     flex: 1,
-    marginLeft: 15,
     paddingVertical: 15,
     borderRadius: 12,
     backgroundColor: colors.primary,
