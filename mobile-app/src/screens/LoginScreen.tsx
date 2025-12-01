@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
 import { AuthService } from '../services/auth';
 
-export const LoginScreen = () => {
+export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
     try {
       await AuthService.signIn(email, password);
-      Alert.alert('Success', 'Logged in successfully!');
+      navigation.replace('Home');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -33,6 +33,13 @@ export const LoginScreen = () => {
         secureTextEntry
       />
       <Button title="Login" onPress={handleLogin} />
+      <View style={{ marginTop: 20 }}>
+        <Button
+          title="Create an Account"
+          onPress={() => navigation.navigate('Register')}
+          color="#888"
+        />
+      </View>
     </View>
   );
 };
