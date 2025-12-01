@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
+import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 export interface Location {
   lat: number;
@@ -18,6 +20,8 @@ interface Props {
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, value }: Props) => {
+  const { i18n } = useTranslation();
+  const isRTL = useIsRTL();
   const ref = useRef<GooglePlacesAutocompleteRef>(null);
 
   // עדכון הטקסט בשדה אם הערך החיצוני משתנה
@@ -44,18 +48,18 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, va
         }}
         query={{
           key: GOOGLE_MAPS_API_KEY,
-          language: 'he', // שפת ממשק: עברית
+          language: i18n.language, // dynamic language
           components: 'country:il', // מיקוד: ישראל
         }}
         styles={{
-          textInput: styles.input,
+          textInput: [styles.input, { textAlign: isRTL ? 'right' : 'left' }],
           listView: styles.listView,
           container: { flex: 0 },
-          row: { backgroundColor: '#fff', direction: 'rtl' }, // כיוון שורה
-          description: { color: '#333', textAlign: 'right' }, // טקסט תוצאות לימין
+          row: { backgroundColor: '#fff', flexDirection: isRTL ? 'row-reverse' : 'row' }, // כיוון שורה
+          description: { color: '#333', textAlign: isRTL ? 'right' : 'left', marginRight: isRTL ? 10 : 0, marginLeft: isRTL ? 0 : 10 }, // טקסט תוצאות לימין
         }}
         textInputProps={{
-            textAlign: 'right', // טקסט קלט לימין
+            textAlign: isRTL ? 'right' : 'left', // טקסט קלט לימין
             placeholderTextColor: '#999'
         }}
         enablePoweredByContainer={false}
@@ -85,7 +89,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    textAlign: 'right', // חשוב לעברית
   },
   listView: {
     backgroundColor: '#fff',

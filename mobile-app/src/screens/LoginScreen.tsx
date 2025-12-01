@@ -15,10 +15,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset'; // <--- הוספנו את זה
+import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import { colors, globalStyles } from '../theme/styles';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 export const LoginScreen = ({ navigation }: any) => {
+  const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +62,7 @@ export const LoginScreen = ({ navigation }: any) => {
       await AuthService.signIn(email, password);
       navigation.replace('Home');
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      Alert.alert(t('login.loginFailed'), error.message);
     } finally {
       setLoading(false);
     }
@@ -73,7 +77,7 @@ export const LoginScreen = ({ navigation }: any) => {
           style={[styles.background, { justifyContent: 'center', alignItems: 'center' }]}
         >
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: '#fff', marginTop: 10, fontWeight: 'bold' }}>Loading PlanLI...</Text>
+          <Text style={{ color: '#fff', marginTop: 10, fontWeight: 'bold' }}>{t('login.loading')}</Text>
         </LinearGradient>
       </View>
     );
@@ -103,14 +107,14 @@ export const LoginScreen = ({ navigation }: any) => {
             />
           </View>
 
-          <Text style={styles.welcomeText}>Welcome Back!</Text>
-          <Text style={styles.subText}>Plan your perfect date instantly</Text>
+          <Text style={styles.welcomeText}>{t('login.welcomeBack')}</Text>
+          <Text style={styles.subText}>{t('login.subText')}</Text>
 
-          <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="email-outline" size={20} color={colors.textLight} style={styles.icon} />
+          <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <MaterialCommunityIcons name="email-outline" size={20} color={colors.textLight} style={[styles.icon, isRTL ? { marginLeft: 10, marginRight: 0 } : { marginRight: 10 }]} />
             <TextInput
-              style={styles.input}
-              placeholder="Email Address"
+              style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+              placeholder={t('login.emailPlaceholder')}
               placeholderTextColor="#999"
               value={email}
               onChangeText={setEmail}
@@ -119,11 +123,11 @@ export const LoginScreen = ({ navigation }: any) => {
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color={colors.textLight} style={styles.icon} />
+          <View style={[styles.inputWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <MaterialCommunityIcons name="lock-outline" size={20} color={colors.textLight} style={[styles.icon, isRTL ? { marginLeft: 10, marginRight: 0 } : { marginRight: 10 }]} />
             <TextInput
-              style={styles.input}
-              placeholder="Password"
+              style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+              placeholder={t('login.passwordPlaceholder')}
               placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
@@ -142,14 +146,14 @@ export const LoginScreen = ({ navigation }: any) => {
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
           ) : (
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>LOGIN</Text>
+              <Text style={styles.loginButtonText}>{t('login.loginBtn')}</Text>
             </TouchableOpacity>
           )}
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>New to PlanLI? </Text>
+          <View style={[styles.footer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={styles.footerText}>{t('login.newToPlanli')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.linkText}>Sign Up</Text>
+              <Text style={styles.linkText}>{t('login.signUp')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -208,7 +212,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   inputWrapper: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   icon: {
-    marginRight: 10,
+    // margins handled inline
   },
   input: {
     flex: 1,
@@ -248,7 +251,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   footer: {
-    flexDirection: 'row',
     marginTop: 25,
   },
   footerText: {

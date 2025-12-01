@@ -2,17 +2,21 @@ import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Text, FlatList, TouchableOpacity, Dimensions } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from 'react-native-maps';
 import { colors, globalStyles } from '../theme/styles'; // וודא שיש לך את זה
+import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 const { width } = Dimensions.get('window');
 
 export const DateResultsScreen = ({ route, navigation }: any) => {
+  const { t } = useTranslation();
+  const isRTL = useIsRTL();
   // קבלה בטוחה של הנתונים
   const result = route.params?.result?.data || route.params?.result;
   
   if (!result) {
       return (
           <View style={styles.container}>
-              <Text>Error loading results.</Text>
+              <Text>{t('dateResults.errorLoading')}</Text>
           </View>
       );
   }
@@ -48,19 +52,19 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
     const rating = details?.rating ? `⭐ ${details.rating} (${details.user_ratings_total})` : '';
 
     return (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.matchScore}>{item.matchScore}% Match</Text>
+        <View style={[styles.card, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+            <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={[styles.placeName, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.matchScore}>{item.matchScore}% {t('dateResults.match')}</Text>
             </View>
             
-            <Text style={styles.address} numberOfLines={1}>
-                {details?.formatted_address || "Address not available"}
+            <Text style={[styles.address, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                {details?.formatted_address || t('dateResults.addressNotAvailable')}
             </Text>
             
-            {rating ? <Text style={styles.rating}>{rating}</Text> : null}
+            {rating ? <Text style={[styles.rating, { textAlign: isRTL ? 'right' : 'left' }]}>{rating}</Text> : null}
             
-            <Text style={styles.desc} numberOfLines={3}>
+            <Text style={[styles.desc, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={3}>
                 "{item.description}"
             </Text>
         </View>
@@ -94,8 +98,8 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
                 >
                     <Callout>
                         <View style={{ width: 150 }}>
-                            <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
-                            <Text style={{ fontSize: 12 }}>{item.matchScore}% Match</Text>
+                            <Text style={{ fontWeight: 'bold', textAlign: isRTL ? 'right' : 'left' }}>{item.name}</Text>
+                            <Text style={{ fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>{item.matchScore}% {t('dateResults.match')}</Text>
                         </View>
                     </Callout>
                 </Marker>
@@ -106,7 +110,7 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
       {/* כרטיסיית התוצאות למטה */}
       <View style={styles.bottomSheet}>
         <View style={styles.handle} />
-        <Text style={styles.resultsTitle}>Top Picks For You ✨</Text>
+        <Text style={[styles.resultsTitle, { textAlign: isRTL ? 'right' : 'left', marginRight: isRTL ? 20 : 0, marginLeft: isRTL ? 0 : 20 }]}>{t('dateResults.topPicks')}</Text>
         
         <FlatList
           data={aiSuggestions}
@@ -117,10 +121,11 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
           contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 20 }}
           snapToInterval={300} // רוחב הכרטיס + מרווח
           decelerationRate="fast"
+          inverted={isRTL} // היפוך כיוון הגלילה ב-RTL
         />
         
         <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.closeButtonText}>Try Again</Text>
+            <Text style={styles.closeButtonText}>{t('dateResults.tryAgain')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -162,7 +167,6 @@ const styles = StyleSheet.create({
   resultsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginLeft: 20,
     marginBottom: 15,
     color: colors.text,
   },
@@ -182,7 +186,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
