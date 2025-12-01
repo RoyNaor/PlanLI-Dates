@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { authenticate, AuthRequest } from './middleware/auth.middleware';
 import userRoutes from './routes/user.routes';
+import dateRoutes from './routes/date.routes';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/dates', dateRoutes);
 
 // Basic Route
 app.get('/', (req: Request, res: Response) => {
