@@ -10,7 +10,7 @@ const openai = new OpenAI({
 
 export interface AiRecommendation {
   name: string;
-  address: string;
+  search_query: string;
   description: string;
   matchScore: number;
 }
@@ -34,11 +34,12 @@ export const generateDateIdeas = async (
       Preferences: ${preferences || "General date spots, romantic, safe"}.
     `;
 
-    const systemPrompt = `You are an expert local guide that have experience finding good dates locations.
-    Task: Suggest 3 venues. IMPORTANT: You must prioritize well-established, long-standing venues to avoid suggesting places that might have permanently closed recently.
+    const systemPrompt = `You are an expert local guide.
+    Task: Suggest 3 venues. IMPORTANT: You must prioritize well-established, long-standing venues.
     Context: ${strategyContext}
     Based on the provided coordinates (Latitude, Longitude), suggest 3 specific real venues nearby that match the user preferences.
-    You must return strict JSON. Output format: { "recommendations": [{ "name": "...", "address": "...", "description": "...", "matchScore": 95 }] }`;
+    You must return strict JSON. Output format: { "recommendations": [{ "name": "...", "search_query": "Name City/Area", "description": "...", "matchScore": 95 }] }
+    Note: 'search_query' should be descriptive enough for Google Maps Search (e.g. "Ouzeria Restaurant Tel Aviv").`;
 
     const completion = await openai.chat.completions.create({
       messages: [

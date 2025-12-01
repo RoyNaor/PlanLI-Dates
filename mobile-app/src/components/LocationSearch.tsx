@@ -1,7 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
-import { colors } from '../theme/styles';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 export interface Location {
   lat: number;
@@ -13,26 +12,14 @@ interface Props {
   placeholder: string;
   onLocationSelected: (location: Location) => void;
   zIndex?: number;
-  value?: string; // <--- הוספנו את זה: הטקסט שאנחנו רוצים להציג
 }
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, value }: Props) => {
-  // יוצרים רפרנס לרכיב של גוגל כדי שנוכל "לדבר" איתו
-  const ref = useRef<GooglePlacesAutocompleteRef>(null);
-
-  // בכל פעם שה-Value משתנה (למשל כשבחרת כתובת), נעדכן את הטקסט בשדה
-  useEffect(() => {
-    if (value) {
-      ref.current?.setAddressText(value);
-    }
-  }, [value]);
-
+export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1 }: Props) => {
   return (
     <View style={[styles.container, { zIndex }]}>
       <GooglePlacesAutocomplete
-        ref={ref} // מחברים את הרפרנס
         placeholder={placeholder}
         fetchDetails={true}
         onPress={(data, details = null) => {
@@ -42,23 +29,18 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, va
               lng: details.geometry.location.lng,
               address: data.description,
             });
-            // הטקסט יתעדכן אוטומטית דרך ה-useEffect
           }
         }}
         query={{
           key: GOOGLE_MAPS_API_KEY,
-          language: 'he',
-          components: 'country:il',
+          language: 'en',
         }}
         styles={{
           textInput: styles.input,
           listView: styles.listView,
           container: { flex: 0 },
-          row: { backgroundColor: '#fff' },
-          description: { color: '#333' },
         }}
         enablePoweredByContainer={false}
-        debounce={200}
       />
     </View>
   );
@@ -66,19 +48,24 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, va
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 15,
+    marginBottom: 10,
     width: '100%',
   },
   input: {
     height: 50,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
     paddingHorizontal: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#e0e0e0',
     color: '#333',
-    textAlign: 'right',
+    // shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   listView: {
     backgroundColor: '#fff',
@@ -86,10 +73,16 @@ const styles = StyleSheet.create({
     marginTop: 5,
     borderWidth: 1,
     borderColor: '#eee',
+    // shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
     position: 'absolute',
     top: 50,
-    width: '100%',
-    zIndex: 9999,
-    elevation: 5,
-  },
+    left: 0,
+    right: 0,
+    zIndex: 999,
+  }
 });

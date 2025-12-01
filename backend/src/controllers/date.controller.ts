@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { calculateMidpoint, calculateDistanceKm, Coordinates } from '../utils/geo.utils';
 import { generateDateIdeas } from '../services/ai.service';
+import { getPlaceDetails } from '../services/places.service';
 
 export const calculateDateLogic = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -42,6 +43,20 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
 
     const aiSuggestions = await generateDateIdeas(searchCenter, preferences || '', strategy, searchRadiusMeters);
 
+    // Enrichment Loop
+    const enrichedResults = [];
+    for (const suggestion of aiSuggestions) {
+        const placeDetails = await getPlaceDetails(suggestion.search_query, searchCenter);
+        if (placeDetails) {
+            enrichedResults.push({
+                ...suggestion,
+                placeDetails
+            });
+        } else {
+            console.log(`Skipping venue ${suggestion.name} - No Google Details found.`);
+        }
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -52,7 +67,7 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
         strategy,
         searchCenter,
         searchRadiusMeters,
-        aiSuggestions
+        aiSuggestions: enrichedResults
       }
     });
   } catch (error) {
