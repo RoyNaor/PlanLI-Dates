@@ -35,9 +35,9 @@ export const generateDateIdeas = async (
     `;
 
     const systemPrompt = `You are an expert local guide.
-    Task: Suggest 3 venues. IMPORTANT: You must prioritize well-established, long-standing venues.
+    Task: Suggest 8 venues. IMPORTANT: You must prioritize well-established, long-standing venues.
     Context: ${strategyContext}
-    Based on the provided coordinates (Latitude, Longitude), suggest 3 specific real venues nearby that match the user preferences.
+    Based on the provided coordinates (Latitude, Longitude), suggest 8 specific real venues nearby that match the user preferences.
     You must return strict JSON. Output format: { "recommendations": [{ "name": "...", "search_query": "Name City/Area", "description": "...", "matchScore": 95 }] }
     Note: 'search_query' should be descriptive enough for Google Maps Search (e.g. "Ouzeria Restaurant Tel Aviv").`;
 
