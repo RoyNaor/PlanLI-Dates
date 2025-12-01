@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { View, TextInput, Button, StyleSheet, Text, Alert, ActivityIndicator } from 'react-native';
 import { AuthService } from '../services/auth';
 
 export const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       await AuthService.signIn(email, password);
       Alert.alert('Success', 'Logged in successfully!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -24,6 +29,7 @@ export const LoginScreen = () => {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        keyboardType="email-address"
       />
       <TextInput
         style={styles.input}
@@ -32,7 +38,11 @@ export const LoginScreen = () => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Button title="Login" onPress={handleLogin} />
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : (
+        <Button title="Login" onPress={handleLogin} disabled={loading} />
+      )}
     </View>
   );
 };
