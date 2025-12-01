@@ -43,7 +43,6 @@ export const LoginScreen = ({ navigation }: any) => {
       ) : (
         <Button title="Login" onPress={handleLogin} disabled={loading} />
       )}
-      <Button title="Login" onPress={handleLogin} />
       <View style={{ marginTop: 20 }}>
         <Button
           title="Create an Account"
