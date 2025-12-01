@@ -1,8 +1,9 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import routes from './routes';
+import { authenticate, AuthRequest } from './middleware/auth.middleware';
+import userRoutes from './routes/user.routes';
 
 dotenv.config();
 
@@ -16,7 +17,24 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/', routes);
+app.use('/api/users', userRoutes);
+
+// Basic Route
+app.get('/', (req: Request, res: Response) => {
+  res.send('PlanLI Dates Backend is running!');
+});
+
+// Health Check
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// Protected Route Example
+// We cast req to AuthRequest inside to avoid Express type mismatch
+app.get('/api/protected', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  res.json({ message: 'You are authenticated!', uid: authReq.user?.uid });
+});
 
 // Connect to MongoDB and Start Server
 const startServer = async () => {

@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, StyleSheet, Text, Alert, ActivityIndicator } from 'react-native';
 import { AuthService } from '../services/auth';
+import { ApiService } from '../services/api';
 
-export const LoginScreen = ({ navigation }: any) => {
+// We'll define navigation types later or use 'any' for now to avoid circular deps if types are not setup
+export const RegisterScreen = ({ navigation }: any) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (loading) return;
+  const handleRegister = async () => {
+    if (!email || !password || !name) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
     setLoading(true);
     try {
-      await AuthService.signIn(email, password);
+      // 1. Create user in Firebase
+      await AuthService.signUp(email, password);
+
+      // 2. Create user in Backend (MongoDB)
+      // Note: AuthService.signUp logs the user in, so ApiService can get the token.
+      await ApiService.post('/users/register', { name });
+
+      Alert.alert('Success', 'Account created successfully!');
       navigation.replace('Home');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error(error);
+      Alert.alert('Registration Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -22,7 +37,15 @@ export const LoginScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Register</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={name}
+        onChangeText={setName}
+      />
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -31,6 +54,7 @@ export const LoginScreen = ({ navigation }: any) => {
         autoCapitalize="none"
         keyboardType="email-address"
       />
+
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -38,17 +62,18 @@ export const LoginScreen = ({ navigation }: any) => {
         onChangeText={setPassword}
         secureTextEntry
       />
+
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" />
       ) : (
-        <Button title="Login" onPress={handleLogin} disabled={loading} />
+        <Button title="Register" onPress={handleRegister} />
       )}
-      <Button title="Login" onPress={handleLogin} />
+
       <View style={{ marginTop: 20 }}>
         <Button
-          title="Create an Account"
-          onPress={() => navigation.navigate('Register')}
-          color="#888"
+            title="Already have an account? Login"
+            onPress={() => navigation.navigate('Login')}
+            color="#888"
         />
       </View>
     </View>
@@ -60,11 +85,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
     marginBottom: 20,
     textAlign: 'center',
+    fontWeight: 'bold',
   },
   input: {
     borderWidth: 1,
