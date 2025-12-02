@@ -2,7 +2,7 @@ import { auth } from '../config/firebase';
 
 // For Android Emulator use 10.0.2.2, for iOS Simulator use localhost.
 // If testing on physical device, use your machine's LAN IP.
-const BASE_URL = 'http://10.1.28.140:3000/api';
+const BASE_URL = 'http://192.168.68.77:3000/api';
 
 export const ApiService = {
   post: async (endpoint: string, data: any) => {

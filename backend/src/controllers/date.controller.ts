@@ -5,7 +5,6 @@ import { getPlaceDetails } from '../services/places.service';
 
 export const calculateDateLogic = async (req: Request, res: Response): Promise<void> => {
   try {
-    // 1. הוספנו את radius כאופציונלי
     const { l1, l2, preferences, strategy = 'MIDPOINT', radius } = req.body as {
       l1: Coordinates;
       l2: Coordinates;
@@ -27,7 +26,6 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
     let searchCenter: Coordinates;
     let searchRadiusMeters: number;
 
-    // 2. קביעת מרכז החיפוש לפי האסטרטגיה
     if (strategy === 'NEAR_ME') {
       searchCenter = l1;
     } else if (strategy === 'NEAR_THEM') {
@@ -37,7 +35,6 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
       searchCenter = midPoint;
     }
 
-    // 3. לוגיקה לרדיוס: אם קיבלנו מהסליידר - משתמשים בו. אם לא - חישוב אוטומטי.
     if (radius && typeof radius === 'number') {
         searchRadiusMeters = radius;
     } else {
@@ -45,7 +42,6 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
         if (strategy === 'NEAR_ME' || strategy === 'NEAR_THEM') {
             searchRadiusMeters = 2000;
         } else {
-            // 15% מהמרחק או מינימום 1 ק"מ
             searchRadiusMeters = Math.max(1000, (distanceKm * 1000) * 0.15);
         }
     }
@@ -78,7 +74,7 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
         lmid: midPoint, // תמיד מחזירים את האמצע האמיתי (בשביל המפה)
         distanceKm,
         strategy,
-        searchCenter,   // המרכז שבו באמת חיפשנו
+        focusPoint: searchCenter,   // המרכז שבו באמת חיפשנו
         searchRadiusMeters,
         aiSuggestions: enrichedResults
       }

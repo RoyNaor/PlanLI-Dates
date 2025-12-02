@@ -38,13 +38,13 @@
     "step": "שלב {{step}} מתוך {{total}}",
     "back": "אחורה",
     "next": "המשך",
-    "findDate": "מצא לי דייט!"
+    "findDate": ",תכנן לי דייט!"
   },
   "dateResults": {
     "errorLoading": "שגיאה בטעינת תוצאות",
     "addressNotAvailable": "כתובת לא זמינה",
     "match": "התאמה",
-    "topPicks": "המומלצים ביותר בשבילך ✨",
+    "topPicks": "המומלצים ביותר בשבילך",
     "tryAgain": "נסה שוב"
   },
   "stepLocation": {
@@ -65,19 +65,25 @@
     "max": "10 ק\"מ"
   },
   "stepVibe": {
-    "title": "הגדר את האווירה ✨",
+    "title": "הגדר את האווירה",
     "budget": "תקציב",
-    "vibe": "אווירה",
-    "cuisine": "מטבח",
+    "vibe": "אווירה וסגנון",
+    "cuisine": "אוכל מועדף",
     "vibes": {
       "Romantic": "רומנטי",
       "Casual": "קליל",
+      "Nature": "טבע",
+      "Lookout": "מצפה/נוף",
+      "Coffee Cart": "עגלת קפה",
+      "Sunset": "שקיעה",
+      "Rooftop": "גג (Rooftop)",
+      "Picnic": "פיקניק",
+      "Quiet": "שקט ואינטימי",
+      "Lively": "תוסס ושמח",
       "Cocktail Bar": "בר קוקטיילים",
       "Restaurant": "מסעדה",
       "Movie": "סרט",
-      "Coffee": "קפה",
-      "Picnic": "פיקניק",
-      "Rooftop": "גג"
+      "Coffee": "קפה"
     },
     "cuisines": {
       "Italian": "איטלקי",
@@ -85,10 +91,13 @@
       "Sushi": "סושי",
       "Burger": "המבורגר",
       "Pizza": "פיצה",
-      "Meat": "בשר",
+      "Meat": "בשרים",
       "Mexican": "מקסיקני",
       "Vegan": "טבעוני",
-      "Seafood": "פירות ים"
+      "Seafood": "דגים וים",
+      "Cafe": "בית קפה",
+      "Bakery": "מאפייה",
+      "Dessert": "קינוחים"
     }
   }
 }

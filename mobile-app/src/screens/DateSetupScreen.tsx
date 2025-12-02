@@ -38,7 +38,7 @@ export const DateSetupScreen = ({ navigation }: any) => {
   const [radius, setRadius] = useState(2000);
   const [budget, setBudget] = useState('$$');
   const [vibes, setVibes] = useState<string[]>([]);
-  const [cuisines, setCuisines] = useState<string[]>([]); // חובה להוסיף את זה ל-Vibe
+  const [cuisines, setCuisines] = useState<string[]>([]); 
   const [loading, setLoading] = useState(false);
 
   // --- Handlers ---

@@ -8,11 +8,14 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// 1. הממשק החדש והמורחב
 export interface AiRecommendation {
   name: string;
   search_query: string;
   description: string;
   matchScore: number;
+  category: 'Food' | 'Drink' | 'Activity' | 'Nature' | 'Culture';
+  timeOfDay: 'Day' | 'Night' | 'Any';
 }
 
 export const generateDateIdeas = async (
@@ -27,30 +30,56 @@ export const generateDateIdeas = async (
       strategy === 'NEAR_THEM' ? "Focus on the area of User 2 (The Guest)." :
       "Find a fair meeting point in the middle.";
 
-    const prompt = `
-      Coordinates: Latitude ${center.lat}, Longitude ${center.lng}.
-      Search Radius: ${radius} meters.
-      Strategy: ${strategy} (${strategyContext}).
-      Preferences: ${preferences || "General date spots, romantic, safe"}.
+    const systemPrompt = `
+      You are an elite Date Planner & Local Concierge.
+      
+      **The Mission:** Curate a list of 6-8 high-quality date venues based on coordinates and a "Vibe".
+      
+      **The Categories:**
+      1. **Food & Drink:** Restaurants, Wine Bars, Dessert spots, Bars.
+      2. **Nature & Views:** Scenic lookouts (Mitzpe), Parks, Beach promenades, Hidden gardens.
+      3. **Active & Fun:** Bowling, Paint Bars, Escape Rooms, Workshops, Billiards, Cinemas.
+      4. **Culture:** Open-air cinemas, Art galleries, Museums.
+
+      **Rules:**
+      - **Accuracy:** Suggest REAL, well-known places. If the area is remote, suggest the closest famous landmarks.
+      - **Search Query:** The 'search_query' field must be optimized for Google Maps API (e.g., instead of just "Park", use "HaYarkon Park Tel Aviv").
+      - **Audience Fit:** Its for Couples! its a DATE!.
+      
+      **Output Format:** Return strict JSON: 
+      { 
+        "recommendations": [
+          { 
+            "name": "Name of Place", 
+            "search_query": "Name + City", 
+            "description": "Why is this good for this specific vibe? (Max 15 words)", 
+            "matchScore": 85-100,
+            "category": "Food" | "Drink" | "Activity" | "Nature" | "Culture",
+            "timeOfDay": "Day" | "Night" | "Any"
+          }
+        ] 
+      }
     `;
 
-    const systemPrompt = `You are an expert local guide.
-    Task: Suggest 8 venues. IMPORTANT: You must prioritize well-established, long-standing venues.
-    Context: ${strategyContext}
-    Based on the provided coordinates (Latitude, Longitude), suggest 8 specific real venues nearby that match the user preferences.
-    You must return strict JSON. Output format: { "recommendations": [{ "name": "...", "search_query": "Name City/Area", "description": "...", "matchScore": 95 }] }
-    Note: 'search_query' should be descriptive enough for Google Maps Search (e.g. "Ouzeria Restaurant Tel Aviv").`;
+    const userPrompt = `
+      **Context:**
+      - Coordinates: ${center.lat}, ${center.lng}
+      - Radius: ${radius} meters (You can expand up to 2x if the area is sparse).
+      - Strategy: ${strategy} (${strategyContext})
+      
+      **User Preferences / Vibe:** "${preferences || "General romantic date"}"
+      
+      GENERATE THE LIST NOW.
+    `;
 
     const completion = await openai.chat.completions.create({
       messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        { role: "user", content: prompt }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ],
-      model: "gpt-4o",
+      model: "gpt-4o", 
       response_format: { type: "json_object" },
+      temperature: 0.7, // הוספנו קצת יצירתיות, אבל לא יותר מדי
     });
 
     const content = completion.choices[0].message.content;
@@ -60,6 +89,7 @@ export const generateDateIdeas = async (
 
     const result = JSON.parse(content);
 
+    // ולידציה בסיסית שאנחנו מקבלים מערך
     if (result.recommendations && Array.isArray(result.recommendations)) {
       return result.recommendations as AiRecommendation[];
     } else {

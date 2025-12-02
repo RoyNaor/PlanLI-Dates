@@ -38,13 +38,13 @@
     "step": "Step {{step}} of {{total}}",
     "back": "Back",
     "next": "Next ➜",
-    "findDate": "Find me a date! 🎉"
+    "findDate": "Plan me a date!"
   },
   "dateResults": {
     "errorLoading": "Error loading results.",
     "addressNotAvailable": "Address not available",
     "match": "Match",
-    "topPicks": "Top Picks For You ✨",
+    "topPicks": "Top Picks For You",
     "tryAgain": "Try Again"
   },
   "stepLocation": {
@@ -65,19 +65,25 @@
     "max": "10km"
   },
   "stepVibe": {
-    "title": "Set the Mood ✨",
+    "title": "Set the Mood",
     "budget": "Budget",
     "vibe": "Vibe",
     "cuisine": "Cuisine",
     "vibes": {
       "Romantic": "Romantic",
       "Casual": "Casual",
+      "Nature": "Nature",
+      "Lookout": "Lookout / View",
+      "Coffee Cart": "Coffee Cart",
+      "Sunset": "Sunset",
+      "Rooftop": "Rooftop",
+      "Picnic": "Picnic",
+      "Quiet": "Quiet & Intimate",
+      "Lively": "Lively & Fun",
       "Cocktail Bar": "Cocktail Bar",
       "Restaurant": "Restaurant",
       "Movie": "Movie",
-      "Coffee": "Coffee",
-      "Picnic": "Picnic",
-      "Rooftop": "Rooftop"
+      "Coffee": "Coffee"
     },
     "cuisines": {
       "Italian": "Italian",
@@ -88,7 +94,10 @@
       "Meat": "Meat",
       "Mexican": "Mexican",
       "Vegan": "Vegan",
-      "Seafood": "Seafood"
+      "Seafood": "Seafood",
+      "Cafe": "Cafe",
+      "Bakery": "Bakery",
+      "Dessert": "Dessert"
     }
   }
 }

@@ -5,8 +5,19 @@ import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 
 const BUDGETS = ['$', '$$', '$$$'];
-const VIBES = ['Romantic', 'Casual', 'Cocktail Bar', 'Restaurant', 'Movie', 'Coffee', 'Picnic', 'Rooftop'];
-const CUISINES = ['Italian', 'Asian', 'Sushi', 'Burger', 'Pizza', 'Meat', 'Mexican', 'Vegan', 'Seafood'];
+
+// הוספנו כאן את הדברים החדשים שביקשת
+const VIBES = [
+  'Romantic', 'Casual', 'Nature', 'Lookout', // טבע, מצפה
+  'Coffee Cart', 'Sunset', // עגלת קפה, שקיעה
+  'Rooftop', 'Picnic', 'Quiet' // גג, פיקניק, שקט, תוסס
+];
+
+const CUISINES = [
+  'Italian', 'Asian', 'Sushi', 'Burger', 'Pizza', 
+  'Cafe', 'Bakery', // בתי קפה, מאפייה
+  'Meat', 'Mexican', 'Vegan', 'Seafood', 'Dessert',
+];
 
 interface Props {
   budget: string; setBudget: (s: string) => void;
@@ -28,9 +39,19 @@ export const StepVibe = ({ budget, setBudget, vibes, setVibes, cuisines, setCuis
       <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {items.map(item => {
           const isSelected = multi ? (selected as string[]).includes(item) : selected === item;
-          const display = translationKey ? t(`${translationKey}.${item}`) : item;
+          // המפתח לתרגום יהיה למשל: stepVibe.vibes.Lookout
+          const display = translationKey ? t(`${translationKey}.${item}`, { defaultValue: item }) : item;
+          
           return (
-            <TouchableOpacity key={item} style={[styles.chip, isSelected && styles.active, isRTL ? { marginLeft: 8, marginRight: 0 } : { marginRight: 8 }]} onPress={() => multi ? onSelect(item) : onSelect(item)}>
+            <TouchableOpacity 
+                key={item} 
+                style={[
+                    styles.chip, 
+                    isSelected && styles.active, 
+                    isRTL ? { marginLeft: 8, marginRight: 0 } : { marginRight: 8 }
+                ]} 
+                onPress={() => multi ? onSelect(item) : onSelect(item)}
+            >
               <Text style={[styles.text, isSelected && styles.textActive]}>{display}</Text>
             </TouchableOpacity>
           );
@@ -43,7 +64,11 @@ export const StepVibe = ({ budget, setBudget, vibes, setVibes, cuisines, setCuis
     <View>
       <Text style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{t('stepVibe.title')}</Text>
       {renderSection('stepVibe.budget', BUDGETS, budget, setBudget)}
+      
+      {/* Vibes */}
       {renderSection('stepVibe.vibe', VIBES, vibes, (v: string) => toggle(v, vibes, setVibes), true, 'stepVibe.vibes')}
+      
+      {/* Cuisines */}
       {renderSection('stepVibe.cuisine', CUISINES, cuisines, (c: string) => toggle(c, cuisines, setCuisines), true, 'stepVibe.cuisines')}
     </View>
   );
@@ -54,7 +79,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: '#333' },
   row: { flexWrap: 'wrap' },
-  chip: { padding: 10, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', marginBottom: 8 },
+  chip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', marginBottom: 8 },
   active: { backgroundColor: colors.primary, borderColor: colors.primary },
   text: { fontSize: 13, color: '#555' },
   textActive: { color: '#fff' }
