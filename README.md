@@ -42,6 +42,19 @@
 | **2.4** | **Reviews (Read)** | Backend endpoint to fetch reviews for a place. |
 | **2.5** | **Place Details** | Full screen with AI rationale, photos, and reviews. |
 
+🟡 Phase 2: Enhanced UI & Intelligent Experience
+
+Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich activities and smart caching.
+
+| Task ID | Task Name | Tech / Details |
+| :--- | :--- | :--- |
+| **2.6** | **Smart Map & Categories** | Extend Google Places search beyond food. Implement layers for: <br>• **Nature:** Viewpoints (`scenic_view`), Parks.<br>• **Active:** Bowling, Paint Bars, Escape Rooms.<br>• **Culture:** Cinemas, Galleries. |
+| **2.7** | **"Vibe" NLP Input** | Replace/Augment basic filters with a **Free Text Input** (e.g., *"Quiet place for deep talk"*). <br>Pass input to OpenAI to generate specific keywords for the Places API search. |
+| **2.8** | **Smart Caching Layer** | **Critical:** Implement MongoDB caching strategy.<br>• Key: `Geohash` + `Category/Vibe`.<br>• Value: Place details + AI-generated description.<br>• TTL: Refresh data every 7-30 days to save API costs. |
+| **2.9** | **Rich Result Cards** | Upgrade BottomSheet to show "Date Context":<br>• Instead of just "Rating", show **"Vibe Match Score"**.<br>• Tags like "Great for Sunset", "Interactive", "Intimate". |
+| **2.10** | **The "Planner" View** | Allow selecting a "Combo": Dinner + Activity nearby (Visualizing the path between two pins). |
+| **2.11** | **Review Aggregation** | Fetch top 3 reviews from Google that match the user's specific vibe (filtering out irrelevant noise). |
+
 ### 🔴 Phase 3: Finalizing MVP (Loop)
 *Goal: Close the product loop with user feedback.*
 
