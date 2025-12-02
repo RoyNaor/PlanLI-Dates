@@ -42,8 +42,6 @@
 | **2.4** | **Reviews (Read)** | Backend endpoint to fetch reviews for a place. |
 | **2.5** | **Place Details** | Full screen with AI rationale, photos, and reviews. |
 
-🟡 Phase 2: Enhanced UI & Intelligent Experience
-
 Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich activities and smart caching.
 
 | Task ID | Task Name | Tech / Details |
@@ -53,7 +51,7 @@ Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich ac
 | **2.8** | **Smart Caching Layer** | **Critical:** Implement MongoDB caching strategy.<br>• Key: `Geohash` + `Category/Vibe`.<br>• Value: Place details + AI-generated description.<br>• TTL: Refresh data every 7-30 days to save API costs. |
 | **2.9** | **Rich Result Cards** | Upgrade BottomSheet to show "Date Context":<br>• Instead of just "Rating", show **"Vibe Match Score"**.<br>• Tags like "Great for Sunset", "Interactive", "Intimate". |
 | **2.10** | **The "Planner" View** | Allow selecting a "Combo": Dinner + Activity nearby (Visualizing the path between two pins). |
-| **2.11** | **Review Aggregation** | Fetch top 3 reviews from Google that match the user's specific vibe (filtering out irrelevant noise). |
+| **2.11** | **Review Aggregation** | Fetch top 8 reviews from Google that match the user's specific vibe (filtering out irrelevant noise). |
 
 ### 🔴 Phase 3: Finalizing MVP (Loop)
 *Goal: Close the product loop with user feedback.*
