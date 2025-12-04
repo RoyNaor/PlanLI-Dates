@@ -38,7 +38,7 @@
     "step": "שלב {{step}} מתוך {{total}}",
     "back": "אחורה",
     "next": "המשך",
-    "findDate": ",תכנן לי דייט!"
+    "findDate": "תכנן לי דייט!"
   },
   "dateResults": {
     "errorLoading": "שגיאה בטעינת תוצאות",

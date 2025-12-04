@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { calculateMidpoint, calculateDistanceKm, Coordinates } from '../utils/geo.utils';
 import { generateDateIdeas } from '../services/ai.service';
-import { getPlaceDetails } from '../services/places.service';
 
 export const calculateDateLogic = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -13,74 +12,74 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
       radius?: number; 
     };
 
-    // ולידציה בסיסית
-    if (!l1 || !l2 || typeof l1.lat !== 'number' || typeof l1.lng !== 'number' || typeof l2.lat !== 'number' || typeof l2.lng !== 'number') {
-      res.status(400).json({ success: false, message: 'Invalid coordinates provided. l1 and l2 must be {lat, lng}.' });
+    // 1. ולידציה בסיסית
+    // הערה: שיניתי את הבדיקה של l2, כי ב-NEAR_ME לא תמיד חייבים l2 (אבל לרוב האפליקציה שולחת)
+    if (!l1 || typeof l1.lat !== 'number' || typeof l1.lng !== 'number') {
+      res.status(400).json({ success: false, message: 'Invalid coordinates provided for User 1 (l1).' });
       return;
     }
 
-    // חישובים בסיסיים (אמצע ומרחק)
-    const midPoint = calculateMidpoint(l1, l2);
-    const distanceKm = calculateDistanceKm(l1, l2);
+    // 2. חישובים גיאוגרפיים בסיסיים
+    // אם אין l2, נתייחס ל-l1 כנקודת האמצע הזמנית
+    const safeL2 = l2 || l1; 
+    const midPoint = calculateMidpoint(l1, safeL2);
+    const distanceKm = calculateDistanceKm(l1, safeL2);
 
+    // 3. קביעת מרכז החיפוש (Search Center)
     let searchCenter: Coordinates;
-    let searchRadiusMeters: number;
 
     if (strategy === 'NEAR_ME') {
       searchCenter = l1;
-    } else if (strategy === 'NEAR_THEM') {
+    } else if (strategy === 'NEAR_THEM' && l2) {
       searchCenter = l2;
     } else {
       // MIDPOINT (Default)
       searchCenter = midPoint;
     }
 
+    // 4. קביעת רדיוס החיפוש
+    let searchRadiusMeters: number;
     if (radius && typeof radius === 'number') {
         searchRadiusMeters = radius;
     } else {
-        // Fallback Logic (הלוגיקה הישנה)
+        // לוגיקת ברירת מחדל חכמה
         if (strategy === 'NEAR_ME' || strategy === 'NEAR_THEM') {
-            searchRadiusMeters = 2000;
+            searchRadiusMeters = 2000; // 2 ק"מ בעיר
         } else {
-            searchRadiusMeters = Math.max(1000, (distanceKm * 1000) * 0.15);
+            // באמצע הדרך לפעמים צריך רדיוס גדול יותר אם זה רחוק
+            searchRadiusMeters = Math.max(1500, (distanceKm * 1000) * 0.15);
         }
     }
-
-    // עיגול הרדיוס למספר שלם
     searchRadiusMeters = Math.round(searchRadiusMeters);
 
-    // קריאה ל-AI
-    const aiSuggestions = await generateDateIdeas(searchCenter, preferences || '', strategy, searchRadiusMeters);
+    console.log(`🚀 Controller: Searching around [${searchCenter.lat}, ${searchCenter.lng}] with radius ${searchRadiusMeters}m`);
 
-    // Enrichment Loop - השלמת פרטים מגוגל
-    const enrichedResults = [];
-    for (const suggestion of aiSuggestions) {
-        const placeDetails = await getPlaceDetails(suggestion.search_query, searchCenter);
-        if (placeDetails) {
-            enrichedResults.push({
-                ...suggestion,
-                placeDetails
-            });
-        } else {
-            console.log(`Skipping venue ${suggestion.name} - No Google Details found.`);
-        }
-    }
+    // 5. קריאה לסוכן החכם (AI Agent) 🧠
+    // הפונקציה הזו עכשיו מחזירה את הכל כולל הכל (Pinecone / Google / Details)
+    const aiSuggestions = await generateDateIdeas(
+        searchCenter, 
+        preferences || '', 
+        strategy, 
+        searchRadiusMeters
+    );
 
+    // 6. החזרת תשובה נקייה
     res.status(200).json({
       success: true,
       data: {
         l1,
-        l2,
-        lmid: midPoint, // תמיד מחזירים את האמצע האמיתי (בשביל המפה)
+        l2: safeL2,
+        lmid: midPoint,         // הפין הצהוב למפה
         distanceKm,
         strategy,
-        focusPoint: searchCenter,   // המרכז שבו באמת חיפשנו
+        focusPoint: searchCenter, // המיקום שהמפה תתמקד בו
         searchRadiusMeters,
-        aiSuggestions: enrichedResults
+        aiSuggestions: aiSuggestions // זה כבר מכיל את ה-placeDetails וה-Category
       }
     });
+
   } catch (error) {
-    console.error('Error in calculateDateLogic:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error in calculateDateLogic:', error);
+    res.status(500).json({ success: false, message: 'Server error processing date request' });
   }
 };
