@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 import { VenueCard } from '../components/VenueCard';
 
+const { width } = Dimensions.get('window');
+
 export const DateResultsScreen = ({ route, navigation }: any) => {
   const { t } = useTranslation();
   const isRTL = useIsRTL();
@@ -24,16 +26,14 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
-    // אנחנו בודקים אם יש focusPoint (מהשרת החדש) או שמשתמשים ב-lmid כברירת מחדל
     const centerToFocus = focusPoint || lmid;
 
     if (mapRef.current && centerToFocus) {
-      
       const radiusInMeters = 2500; 
       const delta = (radiusInMeters * 2.5) / 111000;
 
       const region = {
-        latitude: centerToFocus.lat, // <--- משתמשים בנקודת הפוקוס האמיתית
+        latitude: centerToFocus.lat, 
         longitude: centerToFocus.lng,
         latitudeDelta: delta,
         longitudeDelta: delta,
@@ -43,8 +43,17 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
     }
   }, [focusPoint, lmid]);
 
+  const handleVenuePress = (item: any) => {
+    navigation.navigate('PlaceDetails', { place: item });
+  };
+
   const renderItem = ({ item }: { item: any }) => {
-    return <VenueCard item={item} />;
+    return (
+        <VenueCard 
+            item={item} 
+            onPress={() => handleVenuePress(item)} 
+        />
+    );
   };
 
   return (
@@ -55,7 +64,7 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
         style={styles.map}
       >
         <Marker coordinate={{ latitude: l1.lat, longitude: l1.lng }} title="You" pinColor="blue" />
-        <Marker coordinate={{ latitude: l2.lat, longitude: l2.lng }} title="Them" pinColor="red" />
+        {l2 && <Marker coordinate={{ latitude: l2.lat, longitude: l2.lng }} title="Them" pinColor="red" />}
         <Marker coordinate={{ latitude: lmid.lat, longitude: lmid.lng }} title="Midpoint" pinColor="yellow" />
 
         {aiSuggestions.map((item: any, index: number) => {
@@ -69,6 +78,7 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
                         longitude: item.placeDetails.geometry.location.lng
                     }}
                     pinColor={colors.primary}
+                    onCalloutPress={() => handleVenuePress(item)} // לחיצה גם מהבלון במפה
                 >
                     <Callout>
                         <View style={{ width: 150 }}>
@@ -95,7 +105,7 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 20 }}
-          snapToInterval={305} 
+          snapToInterval={275} // הותאם לרווח החדש (260 + 15)
           decelerationRate="fast"
           inverted={isRTL} 
         />
@@ -114,14 +124,14 @@ const styles = StyleSheet.create({
   },
   map: {
     width: '100%',
-    height: '100%',
+    height: '100%', // המפה תופסת הכל, והבוטום שיט צף עליה
   },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '45%', 
+    height: 350, // גובה קבוע שמתאים לכרטיס החדש (320) + כותרת וכפתור
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

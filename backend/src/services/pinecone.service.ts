@@ -22,13 +22,14 @@ export interface PlaceMetadata {
     lat: number;
     lng: number;
     richDescription: string; 
+    photo_references?: string[]; 
 }
 
 export const searchSimilarPlaces = async (
     queryText: string, 
     center: { lat: number, lng: number }, 
     radiusMeter: number
-) => {
+): Promise<(PlaceMetadata & { matchScore: number })[]> => {
   console.log(`🧠 Pinecone: Searching for "${queryText}"...`);
   
   const vector = await getEmbedding(queryText);
@@ -49,20 +50,28 @@ export const searchSimilarPlaces = async (
         const distKm = calculateDistanceKm(center, { lat: placeLat, lng: placeLng });
         const distMeters = distKm * 1000;
         
-        return distMeters <= radiusMeter;
+        // --- באפר חכם: מינימום 3 ק"מ או כפול מהרדיוס ---
+        const effectiveRadius = Math.max(radiusMeter * 2, 3000); 
+        
+        return distMeters <= effectiveRadius;
     })
     .map(match => ({
-        ...match.metadata,
+        ...(match.metadata as unknown as PlaceMetadata),
         matchScore: (match.score || 0) * 100
     }));
 
   return relevantPlaces;
 };
 
+
 export const savePlaceToPinecone = async (place: any, aiDescription: string) => {
   try {
       const vector = await getEmbedding(aiDescription);
       
+      const photoRefs = place.photos 
+        ? place.photos.map((p: any) => p.photo_reference).slice(0, 5) 
+        : [];
+
       const metadata: PlaceMetadata = {
           name: place.name,
           place_id: place.place_id,
@@ -72,7 +81,8 @@ export const savePlaceToPinecone = async (place: any, aiDescription: string) => 
           vicinity: place.vicinity || place.formatted_address || '',
           lat: place.geometry.location.lat,
           lng: place.geometry.location.lng,
-          richDescription: aiDescription
+          richDescription: aiDescription,
+          photo_references: photoRefs 
       };
 
       await index.upsert([
@@ -83,9 +93,8 @@ export const savePlaceToPinecone = async (place: any, aiDescription: string) => 
         }
       ]);
       
-      console.log(`💾 Saved to Pinecone: ${place.name}`);
+      console.log(`💾 Saved to Pinecone: ${place.name} with ${photoRefs.length} photos`);
   } catch (error) {
       console.error("Error saving to Pinecone:", error);
   }
 };
-
