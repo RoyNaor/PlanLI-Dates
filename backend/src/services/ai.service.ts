@@ -7,16 +7,24 @@ import { searchGooglePlaces, GooglePlace } from './google-maps.service';
 dotenv.config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export interface AiRecommendation {
   name: string;
   search_query: string;
   description: string;
   matchScore: number;
-  category: "Food" | "Drink" | "Activity" | "Nature" | "Culture";
-  timeOfDay: "Day" | "Night" | "Any";
+  category: 'Food' | 'Drink' | 'Activity' | 'Nature' | 'Culture';
+  timeOfDay: 'Day' | 'Night' | 'Any';
+  imageUrls: string[];
   placeDetails?: any;
 }
+
+// פונקציית עזר לבניית לינק לתמונה
+const buildPhotoUrl = (photoRef?: string): string | null => {
+  if (!photoRef || !GOOGLE_KEY) return null;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${GOOGLE_KEY}`;
+};
 
 export const generateDateIdeas = async (
   center: Coordinates,
@@ -25,132 +33,324 @@ export const generateDateIdeas = async (
   radius: number
 ): Promise<AiRecommendation[]> => {
   try {
-    console.log("🤔 AI Agent started...");
+    console.log('🤔 AI Agent started...');
     console.log(`📍 Input: ${preferences}`);
 
+    // 1. שלב ראשון: בדיקה בזיכרון (Pinecone)
     const cachedPlaces = await searchSimilarPlaces(preferences, center, radius);
 
-    if (cachedPlaces.length >= 4) {
-        console.log(`✨ CACHE HIT! Found ${cachedPlaces.length} places in Pinecone.`);
-        
-        return cachedPlaces.map((place: any) => ({
-            name: place.name,
-            search_query: `${place.name} ${place.vicinity}`,
-            description: place.richDescription,
-            matchScore: Math.round(place.matchScore || 85),
-            category: mapTypesToCategory(place.types), 
-            timeOfDay: 'Any', 
-            placeDetails: {
-                place_id: place.place_id,
-                name: place.name,
-                geometry: { location: { lat: place.lat, lng: place.lng } },
-                formatted_address: place.vicinity,
-                rating: place.rating,
-                user_ratings_total: place.user_ratings_total
-            }
-        }));
+    const cuisineKeywords = extractCuisineKeywords(preferences);
+    let validCachedPlaces: any[] = cachedPlaces;
+
+    // אם זוהה סוג אוכל ספציפי - ננסה לסנן לפי זה
+    if (cuisineKeywords.length > 0) {
+      console.log(
+        `🔎 Filtering Cache for specific cuisine: ${cuisineKeywords.join(', ')}`
+      );
+
+      const filtered = cachedPlaces.filter((place: any) =>
+        matchesCuisine(place, cuisineKeywords)
+      );
+
+      console.log(
+        `📊 Filter results: Started with ${cachedPlaces.length}, remained with ${filtered.length}`
+      );
+
+      if (filtered.length > 0) {
+        // יש התאמות למטבח - משתמשים בהן
+        validCachedPlaces = filtered;
+      } else {
+        // אין התאמות – לא זורקים את כל ה-cache, נשארים עם כל מה שחזר
+        console.log(
+          `⚠️ Cuisine filter returned 0 results – falling back to all cached places.`
+        );
+      }
     }
 
-    console.log("🌍 CACHE MISS (or low). Calling Google Maps API...");
-    
-    const googleQuery = await generateGoogleQuery(preferences);
-    
-    const googleResults = await searchGooglePlaces(googleQuery, center, radius);
-    
-    const topResults = googleResults.slice(0, 6);
+    // מיון לפי matchScore מהגבוה לנמוך
+    validCachedPlaces = [...validCachedPlaces].sort(
+      (a, b) => (b.matchScore || 0) - (a.matchScore || 0)
+    );
 
-    const processedResults = await Promise.all(topResults.map(async (place) => {
-        const richDescription = await generateRichDescription(place, preferences);
-        
-        await savePlaceToPinecone(place, richDescription);
+    // מיפוי ממקומות ב-Pinecone ל-AiRecommendation
+    const cachedRecommendations: AiRecommendation[] = validCachedPlaces
+      .slice(0, 6) // עד 6 מה-cache
+      .map((place: any) => {
+        // נורמליזציה של הציון – שלא תקבל 40 מבאס
+        const rawScore = Math.round(place.matchScore || 85);
+        const normalizedScore = Math.max(70, Math.min(rawScore, 99)); // בין 70 ל-99
 
         return {
+          name: place.name,
+          search_query: `${place.name} ${place.vicinity ?? ''}`.trim(),
+          description: place.richDescription,
+          matchScore: normalizedScore,
+          category: mapTypesToCategory(place.types),
+          timeOfDay: 'Any',
+          imageUrls: (place.photo_references || [])
+            .map(buildPhotoUrl)
+            .filter(
+              (url: string | null): url is string =>
+                url !== null
+            ),
+          placeDetails: {
+            place_id: place.place_id,
             name: place.name,
-            search_query: `${place.name} ${place.formatted_address}`,
-            description: richDescription,
-            matchScore: calculateDynamicScore(place.rating), 
-            category: mapTypesToCategory(place.types.join(', ')),
-            timeOfDay: determineTimeOfDay(place.types),
-            placeDetails: place
+            geometry: { location: { lat: place.lat, lng: place.lng } },
+            formatted_address: place.vicinity,
+            rating: place.rating,
+            user_ratings_total: place.user_ratings_total
+          }
+        };
+      });
+
+    // אם יש 6 מה-cache – מעולה, לא צריך גוגל
+    if (cachedRecommendations.length === 6) {
+      console.log(
+        `✨ FULL CACHE HIT! Using 6 places from Pinecone (out of ${validCachedPlaces.length} valid, ${cachedPlaces.length} total).`
+      );
+      return cachedRecommendations;
+    }
+
+    // אם אין בכלל כלום ב-cache – זה MISS מלא
+    if (cachedRecommendations.length === 0) {
+      console.log(
+        '🌍 CACHE MISS (no valid cached places). Calling Google Maps API...'
+      );
+    } else {
+      // יש קצת מה-cache, אבל פחות מ-6 – נשלים מגוגל
+      console.log(
+        `🌍 PARTIAL CACHE HIT (${cachedRecommendations.length} from Pinecone). Calling Google Maps API to complete to 6...`
+      );
+    }
+
+    // --- שלב שני: Google Maps API להשלמה / גיבוי ---
+
+    const googleQuery = await generateGoogleQuery(preferences);
+    const googleResults = await searchGooglePlaces(googleQuery, center, radius);
+
+    // נביא יותר מתוצאות 6 כדי שיהיה ממה לבחור ולא לדפוק דופליקציות
+    const topResults = googleResults.slice(0, 10);
+
+    const processedGoogleResults: AiRecommendation[] = await Promise.all(
+      topResults.map(async (place) => {
+        const richDescription = await generateRichDescription(
+          place,
+          preferences
+        );
+
+        // שומרים לשימוש עתידי ב-Pinecone
+        await savePlaceToPinecone(place, richDescription);
+
+        const photoRefs =
+          place.photos?.slice(0, 5).map((p) => p.photo_reference) || [];
+
+        return {
+          name: place.name,
+          search_query: `${place.name} ${place.formatted_address}`,
+          description: richDescription,
+          matchScore: calculateDynamicScore(place.rating),
+          category: mapTypesToCategory(place.types.join(', ')),
+          timeOfDay: determineTimeOfDay(place.types),
+          imageUrls: photoRefs
+            .map(buildPhotoUrl)
+            .filter(
+              (url: string | null): url is string =>
+                url !== null
+            ),
+          placeDetails: place
         } as AiRecommendation;
-    }));
+      })
+    );
 
-    return processedResults;
+    // הסרת כפילויות לפי place_id
+    const existingIds = new Set(
+      cachedRecommendations
+        .map((r) => r.placeDetails?.place_id)
+        .filter(Boolean) as string[]
+    );
 
+    const googleWithoutDuplicates = processedGoogleResults.filter(
+      (r) =>
+        !r.placeDetails?.place_id ||
+        !existingIds.has(r.placeDetails.place_id)
+    );
+
+    // מיזוג cache + google, עד 6 סופיים
+    const finalRecommendations = [
+      ...cachedRecommendations,
+      ...googleWithoutDuplicates
+    ].slice(0, 6);
+
+    console.log(
+      `✅ Returning ${finalRecommendations.length} merged recommendations (${cachedRecommendations.length} from cache, ${
+        finalRecommendations.length - cachedRecommendations.length
+      } from Google).`
+    );
+
+    return finalRecommendations;
   } catch (error) {
-    console.error("❌ Error in AI Agent:", error);
+    console.error('❌ Error in AI Agent:', error);
     return [];
   }
 };
 
-// --- Helper Functions  ---
-function mapTypesToCategory(types: string): any {
-    const t = types.toLowerCase();
-    
-    if (t.includes('movie_theater') || t.includes('cinema') || t.includes('museum') || t.includes('art_gallery')) return 'Culture';
-    if (t.includes('park') || t.includes('camp') || t.includes('natural') || t.includes('tourist_attraction')) return 'Nature';
-    if (t.includes('bar') || t.includes('night_club') || t.includes('pub') || t.includes('wine')) return 'Drink';
-    
-    if (t.includes('restaurant') || t.includes('food') || t.includes('bakery') || t.includes('cafe') || t.includes('meal_takeaway')) return 'Food';
-    
-    return 'Activity';
+// --- Helper Functions ---
+
+function extractCuisineKeywords(prefs: string): string[] {
+  const p = prefs.toLowerCase();
+  const keywords: string[] = [];
+
+  const cuisineTypes = [
+    'sushi',
+    'asian',
+    'japanese',
+    'chinese',
+    'thai',
+    'vietnamese',
+    'italian',
+    'pizza',
+    'pasta',
+    'burger',
+    'hamburger',
+    'american',
+    'mexican',
+    'tacos',
+    'vegan',
+    'vegetarian',
+    'meat',
+    'steak',
+    'coffee',
+    'cafe',
+    'indian'
+  ];
+
+  cuisineTypes.forEach((type) => {
+    if (p.includes(type)) keywords.push(type);
+  });
+
+  if (keywords.includes('sushi')) keywords.push('japanese');
+  if (keywords.includes('japanese')) keywords.push('sushi');
+
+  if (keywords.includes('burger')) keywords.push('hamburger');
+
+  if (keywords.includes('pasta')) keywords.push('italian');
+  if (keywords.includes('pizza')) keywords.push('italian');
+
+  return keywords;
 }
 
-function determineTimeOfDay(types: string[]): "Day" | "Night" | "Any" {
-    const t = types.join(' ').toLowerCase();
-    if (t.includes('bar') || t.includes('night_club') || t.includes('pub')) return 'Night';
-    if (t.includes('park') || t.includes('cafe') || t.includes('bakery')) return 'Day';
-    return 'Any';
+function matchesCuisine(place: any, cuisineKeywords: string[]): boolean {
+  const placeText = `${place.name} ${place.types} ${
+    place.richDescription ?? ''
+  } ${place.vicinity ?? ''}`.toLowerCase();
+
+  const tokens = placeText.split(/[^a-zA-Z]+/).filter(Boolean); // ["taizu","asian","restaurant",...]
+
+  return cuisineKeywords.some((kw) => tokens.includes(kw));
+}
+
+function mapTypesToCategory(types: string): 'Food' | 'Drink' | 'Activity' | 'Nature' | 'Culture' {
+  const t = types.toLowerCase();
+
+  if (
+    t.includes('movie_theater') ||
+    t.includes('cinema') ||
+    t.includes('museum') ||
+    t.includes('art_gallery')
+  )
+    return 'Culture';
+  if (
+    t.includes('park') ||
+    t.includes('camp') ||
+    t.includes('natural') ||
+    t.includes('tourist_attraction')
+  )
+    return 'Nature';
+  if (
+    t.includes('bar') ||
+    t.includes('night_club') ||
+    t.includes('pub') ||
+    t.includes('wine')
+  )
+    return 'Drink';
+  if (
+    t.includes('restaurant') ||
+    t.includes('food') ||
+    t.includes('bakery') ||
+    t.includes('cafe') ||
+    t.includes('meal_takeaway')
+  )
+    return 'Food';
+
+  return 'Activity';
+}
+
+function determineTimeOfDay(types: string[]): 'Day' | 'Night' | 'Any' {
+  const t = types.join(' ').toLowerCase();
+  if (t.includes('bar') || t.includes('night_club') || t.includes('pub'))
+    return 'Night';
+  if (t.includes('park') || t.includes('cafe') || t.includes('bakery'))
+    return 'Day';
+  return 'Any';
 }
 
 function calculateDynamicScore(rating?: number): number {
-    if (!rating) return 85;
-    return Math.min(99, Math.round(rating * 10 + 45 + (Math.random() * 5))); 
+  if (!rating) return 85;
+  return Math.min(99, Math.round(rating * 10 + 45 + Math.random() * 5));
 }
 
 async function generateGoogleQuery(preferences: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini", 
-        messages: [
-            { 
-                role: "system", 
-                content: `You are a query optimizer for Google Maps Places API.
-                INPUT: User preferences string (e.g., "$$ budget. Vibe: Romantic. Cuisine: Italian, Asian").
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: `You are a query optimizer for Google Maps Places API.
+                INPUT: User preferences string.
                 OUTPUT: A clean, effective search query string.
                 
                 RULES:
-                1. Combine "Vibe" and "Cuisine" smartly.
-                2. Use "OR" logic for multiple cuisines.
-                3. If the vibe is "Coffee Cart", search for "Coffee cart" or "Food truck".
-                4. If the vibe/activity is "Movie", search for "Cinema" or "Movie Theater".
-                5. Keep it short (max 5-6 words).
+                1. Combine "Vibe" and "Cuisine" smartly. Use OR for multiple cuisines.
+                2. If vibe is "Coffee Cart", search for "Coffee cart" or "Food truck".
+                3. If vibe/activity is "Movie", search for "Cinema" or "Movie Theater".
+                4. Keep it short (max 6 words).
+                5. If input mentions specific cuisine (Sushi), MUST include it.
                 
                 Examples:
-                In: "Vibe: Casual. Cuisine: Cafe." -> Out: "Coffee shop or Cafe"
-                In: "Vibe: Coffee Cart." -> Out: "Coffee Cart or Food Truck"  <-- הוספנו דוגמה ספציפית
+                In: "Vibe: Coffee Cart." -> Out: "Coffee Cart or Food Truck"
+                In: "Vibe: Fun. Cuisine: Movie." -> Out: "Cinema or Movie Theater"
                 In: "Vibe: Romantic. Cuisine: Italian." -> Out: "Romantic Italian Restaurant"
-                In: "Vibe: Fun. Cuisine: Movie." -> Out: "Cinema or Movie Theater" <-- הוספנו דוגמה ספציפית
-                ` 
-            }, 
-            { role: "user", content: preferences }
-        ]
-    });
-    return response.choices[0].message.content || "Date spots";
+                `
+      },
+      { role: 'user', content: preferences }
+    ]
+  });
+  return response.choices[0].message.content || 'Date spots';
 }
 
-async function generateRichDescription(place: GooglePlace, userPrefs: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            {
-                role: "system",
-                content: "You are a copywriter for a dating app. Write a 1-sentence catchy description. If it's a Coffee Cart, mention it's great for a casual outdoor date. If it's a Cinema, mention the viewing experience."
-            },
-            { 
-                role: "user", 
-                content: `Venue: ${place.name} (${place.types.join(', ')}). User Vibe: ${userPrefs}. Write a description.` 
-            }
-        ]
-    });
-    return response.choices[0].message.content || `${place.name} is a great spot matching your vibe.`;
+async function generateRichDescription(
+  place: GooglePlace,
+  userPrefs: string
+): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content:
+          "You are a copywriter for a dating app. Write a 1-sentence catchy description. If it's a Coffee Cart, mention it's great for a casual outdoor date. If it's a Cinema, mention the viewing experience."
+      },
+      {
+        role: 'user',
+        content: `Venue: ${place.name} (${place.types.join(
+          ', '
+        )}). User Vibe: ${userPrefs}. Write a description.`
+      }
+    ]
+  });
+  return (
+    response.choices[0].message.content ||
+    `${place.name} is a great spot matching your vibe.`
+  );
 }

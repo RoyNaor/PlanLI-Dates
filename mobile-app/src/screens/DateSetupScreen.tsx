@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -9,13 +9,12 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
-  FlatList // <--- הרכיב שיציל אותנו מהשגיאה
+  FlatList 
 } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
-import Slider from '@react-native-community/slider';
+import { SafeAreaView } from 'react-native-safe-area-context'; // <--- 1. הייבוא החדש
 import { LocationSearch, Location } from '../components/LocationSearch';
 import { ApiService } from '../services/api';
-import { colors, globalStyles } from '../theme/styles';
+import { colors } from '../theme/styles';
 import { getCenterPoint } from '../utils/geo'; 
 import { StepLocation } from '../components/StepLocation';
 import { StepRadius } from '../components/StepRadius';
@@ -28,6 +27,7 @@ const { width } = Dimensions.get('window');
 export const DateSetupScreen = ({ navigation }: any) => {
   const { t, i18n } = useTranslation();
   const isRTL = useIsRTL();
+  
   // --- State ---
   const [step, setStep] = useState(1);
   const totalSteps = 3;
@@ -47,7 +47,6 @@ export const DateSetupScreen = ({ navigation }: any) => {
     try {
         const vibeString = vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : '';
         const cuisineString = cuisines.length > 0 ? `Cuisine: ${cuisines.join(', ')}` : '';
-        // 6. Backend Adjustment
         const langContext = i18n.language === 'he' ? "Output language: Hebrew. " : "";
         const preferences = `${langContext}${budget} budget. ${vibeString}. ${cuisineString}.`;
 
@@ -90,7 +89,6 @@ export const DateSetupScreen = ({ navigation }: any) => {
     );
   };
 
-  // זו הפונקציה הראשית שמכילה את כל ה-UI של המסך
   const renderScreenContent = () => (
     <View style={styles.contentContainer}>
         {renderProgressBar()}
@@ -122,46 +120,51 @@ export const DateSetupScreen = ({ navigation }: any) => {
   );
 
   return (
-    <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        style={{ flex: 1, backgroundColor: '#fff' }}
-    >
-      <FlatList
-        data={[]}
-        renderItem={null}
-        ListHeaderComponent={renderScreenContent}
-        keyboardShouldPersistTaps="handled" // קריטי כדי שהלחיצה על הכתובת תעבוד
-        contentContainerStyle={{ paddingBottom: 100 }} // מקום לכפתורים למטה
-      />
+    // <--- 2. העטיפה החדשה ששומרת מלמעלה
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
+      
+      <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={{ flex: 1 }}
+      >
+        <FlatList
+          data={[]}
+          renderItem={null}
+          ListHeaderComponent={renderScreenContent}
+          keyboardShouldPersistTaps="handled" 
+          contentContainerStyle={{ paddingBottom: 100 }} 
+        />
 
-      {/* Footer (כפתורי ניווט) */}
-      <View style={[styles.footer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {step > 1 ? (
-            <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
-                <Text style={{color: '#666', fontWeight: 'bold'}}>{t('dateSetup.back')}</Text>
-            </TouchableOpacity>
-        ) : <View style={{width: 70}} />} 
+        {/* Footer */}
+        <View style={[styles.footer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {step > 1 ? (
+              <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
+                  <Text style={{color: '#666', fontWeight: 'bold'}}>{t('dateSetup.back')}</Text>
+              </TouchableOpacity>
+          ) : <View style={{width: 70}} />} 
 
-        <TouchableOpacity 
-            style={[styles.nextBtn, { marginLeft: isRTL ? 0 : 15, marginRight: isRTL ? 15 : 0 }]}
-            onPress={() => step < totalSteps ? handleNext() : handleFinish()}
-        >
-            {loading ? (
-                <ActivityIndicator color="#fff" />
-            ) : (
-                <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
-                    {step < totalSteps ? t('dateSetup.next') : t('dateSetup.findDate')}
-                </Text>
-            )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <TouchableOpacity 
+              style={[styles.nextBtn, { marginLeft: isRTL ? 0 : 15, marginRight: isRTL ? 15 : 0 }]}
+              onPress={() => step < totalSteps ? handleNext() : handleFinish()}
+          >
+              {loading ? (
+                  <ActivityIndicator color="#fff" />
+              ) : (
+                  <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
+                      {step < totalSteps ? t('dateSetup.next') : t('dateSetup.findDate')}
+                  </Text>
+              )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
+    paddingTop: 10, // <--- 3. הקטנו את זה קצת כי SafeAreaView נותן מרווח
   },
   progressContainer: {
     marginBottom: 25,
@@ -184,7 +187,6 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '600',
   },
-  // Footer Styles
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -193,10 +195,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'space-between',
     padding: 20,
-    paddingBottom: 30, // קצת מרווח לאייפונים חדשים
+    paddingBottom: 30, 
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    // Shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
