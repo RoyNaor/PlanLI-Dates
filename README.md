@@ -2,14 +2,13 @@
 
 > **FOR AI AGENTS:** This file is the Source of Truth for the PlanLI Dates project. 
 > Refer to this file for architecture, tech stack, data models, and the development roadmap.
-> **Current Focus:** Phase 1 (Core Infrastructure & AI Proof).
 
 ---
 
 ## 1. Project Overview
 **App Name:** PlanLI Dates (PLD)
 **Slogan:** "הדרך החכמה להיפגש" (The smart way to meet).
-**Core Value:** An AI-powered dating planner that finds the perfect meeting point ($L_{mid}$) between two users ($L_1, L_2$) and suggests a ranked list of venues based on shared preferences, powered by OpenAI.
+**Core Value:** An AI-powered dating planner that finds the perfect meeting point ($L_{mid}$) between two users ($L_1, L_2$) and suggests a ranked list of venues based on shared preferences, powered by OpenAI and Vector Search.
 
 **Folder Structure:**
 - `/backend`: Node.js + Express application (API, Logic, DB connection).
@@ -25,11 +24,11 @@
 | Task ID | Task Name | Tech / Details |
 | :--- | :--- | :--- |
 | **1.1** | **Project Setup** | Initialize Node.js Express (Backend) & React Native (Mobile). Setup TypeScript. |
-| **1.2** | **Auth Setup** | Integrate Firebase Auth (Basic Email/Password or Google). |
-| **1.3** | **Data Modeling** | Create Mongoose Schemas: `User` (Profile), `Place` (Cache/Reviews). |
+| **1.2** | **Auth Setup** | Integrate Firebase Auth (Basic Email/Password). |
+| **1.3** | **Data Modeling** | Create Mongoose Schemas (`User`, `Place`) & Pinecone Index. |
 | **1.4** | **Geo-Logic** | Implement $L_{mid}$ (Midpoint) calculation logic in Backend. |
-| **1.5** | **AI Logic (Core)** | **CRITICAL:** Build Endpoint taking 2 locations + preferences -> OpenAI API -> Returns JSON recommendations. |
-| **1.6** | **Basic Input UI** | Simple "Ugly" screen to input 2 locations & trigger the AI. |
+| **1.5** | **AI Logic (Core)** | **CRITICAL:** Build Hybrid Search (Pinecone + Google Maps) -> OpenAI Reranking. |
+| **1.6** | **Basic Input UI** | Simple screen to input 2 locations & trigger the AI. |
 
 ### 🟡 Phase 2: UI/UX & Map Integration
 *Goal: Make it visual and interactive.*
@@ -41,17 +40,6 @@
 | **2.3** | **Results List** | BottomSheet displaying the AI recommendations. |
 | **2.4** | **Reviews (Read)** | Backend endpoint to fetch reviews for a place. |
 | **2.5** | **Place Details** | Full screen with AI rationale, photos, and reviews. |
-
-Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich activities and smart caching.
-
-| Task ID | Task Name | Tech / Details |
-| :--- | :--- | :--- |
-| **2.6** | **Smart Map & Categories** | Extend Google Places search beyond food. Implement layers for: <br>• **Nature:** Viewpoints (`scenic_view`), Parks.<br>• **Active:** Bowling, Paint Bars, Escape Rooms.<br>• **Culture:** Cinemas, Galleries. |
-| **2.7** | **"Vibe" NLP Input** | Replace/Augment basic filters with a **Free Text Input** (e.g., *"Quiet place for deep talk"*). <br>Pass input to OpenAI to generate specific keywords for the Places API search. |
-| **2.8** | **Smart Caching Layer** | **Critical:** Implement MongoDB caching strategy.<br>• Key: `Geohash` + `Category/Vibe`.<br>• Value: Place details + AI-generated description.<br>• TTL: Refresh data every 7-30 days to save API costs. |
-| **2.9** | **Rich Result Cards** | Upgrade BottomSheet to show "Date Context":<br>• Instead of just "Rating", show **"Vibe Match Score"**.<br>• Tags like "Great for Sunset", "Interactive", "Intimate". |
-| **2.10** | **The "Planner" View** | Allow selecting a "Combo": Dinner + Activity nearby (Visualizing the path between two pins). |
-| **2.11** | **Review Aggregation** | Fetch top 8 reviews from Google that match the user's specific vibe (filtering out irrelevant noise). |
 
 ### 🔴 Phase 3: Finalizing MVP (Loop)
 *Goal: Close the product loop with user feedback.*
@@ -70,37 +58,51 @@ Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich ac
 ### Backend (Server)
 * **Runtime:** Node.js
 * **Framework:** Express.js (with TypeScript)
-* **Database:** MongoDB (via Mongoose)
-* **AI Engine:** OpenAI API (GPT-4o or Turbo)
+* **Database (Primary):** MongoDB (via Mongoose)
+* **Vector Database:** **Pinecone** (Serverless) - Stores embeddings for semantic search.
+* **AI Engine:** OpenAI API
+    *   **Embeddings:** `text-embedding-3-small`
+    *   **LLM:** `gpt-4o-mini`
 * **Geo Data:** Google Maps Platform (Places API, Geocoding)
 * **Auth:** Firebase Admin SDK
 
 ### Frontend (Client)
-* **Framework:** React Native (TypeScript) - Expo is recommended for speed.
-* **State Management:** Zustand
-* **Maps:** React Native Maps
-* **Navigation:** React Navigation
+* **Framework:** React Native (Expo) with TypeScript.
+* **Maps:** `react-native-maps`, `react-native-google-places-autocomplete`.
+* **Localization:** `i18next`, `expo-localization`.
+* **Auth:** Firebase JS SDK.
 
 ---
 
 ## 4. Core Logic Specifications
 
-### A. The "Smart Match" Algorithm (Backend)
+### A. The "Smart Match" Algorithm (Hybrid Vector Search)
+The backend uses a hybrid approach combining Vector Search (Pinecone) and Live API Search (Google Maps) to optimize for quality and cost.
+
 1.  **Receive Inputs:**
-    * $L_1$ (User 1 Coords), $L_2$ (User 2 Coords).
-    * $P_{core}$ (Preferences: e.g., "Wine Bar", "Vegan").
-    * $P_{price}$ (Budget).
-2.  **Calculate Midpoint ($L_{mid}$):**
-    * Compute geographic center between $L_1$ and $L_2$.
-    * Define Search Radius ($D_{max}$).
-3.  **Fetch Candidates:**
-    * Query Google Places API around $L_{mid}$ based on preferences.
-    * Result: `CandidateList` (Array of raw places).
-4.  **AI Analysis (The Brain):**
-    * Send `CandidateList` + `UserPreferences` to OpenAI.
-    * **System Prompt:** "You are an expert date planner. Select the top 5 venues from this list that best match the couple's vibe. Return a strict JSON array with Place ID, Match Score, and a personalized 'Why this place?' rationale."
-5.  **Response:**
-    * Return the JSON to the client.
+    *   $L_1, L_2$ (User Locations) -> Calculate $L_{mid}$ (Midpoint).
+    *   `UserPreferences` (e.g., "Romantic Italian dinner").
+    *   `Radius`, `TimeOfDay`.
+
+2.  **Step 1: Vector Cache Search (Pinecone)**
+    *   **Embed:** Convert `UserPreferences` to vector using `text-embedding-3-small`.
+    *   **Query:** Search Pinecone index (`planli-places`) near $L_{mid}$.
+    *   **Filter:** Apply cuisine/category filters if extracted from text.
+    *   **Outcome:** If $\ge 6$ high-quality matches found, return them (**Full Cache Hit**).
+
+3.  **Step 2: Google Maps Fallback (Partial/No Hit)**
+    *   If Pinecone returns $< 6$ results:
+    *   **Generate Query:** Use `gpt-4o-mini` to convert user vibe into a Google Places keyword query (e.g., "Cozy Italian Restaurant").
+    *   **Search:** specific Google Places API Text Search.
+    *   **Enrich:** For each new place found:
+        *   Generate **"Rich Description"** using `gpt-4o-mini` (e.g., "A candlelit spot perfect for a first date.").
+        *   **Embed & Save:** Save vector to Pinecone (searchable future cache) and details to MongoDB.
+
+4.  **Step 3: Response Construction**
+    *   Merge Pinecone and Google results.
+    *   Deduplicate by `googlePlaceId`.
+    *   Sort by `matchScore` (Cosine Similarity or Dynamic Score).
+    *   Return top 6 recommendations.
 
 ---
 
@@ -109,18 +111,61 @@ Goal: Transform from a "Map Wrapper" to a "Vibe-Based Date Planner" with rich ac
 * **Primary Color (Ruby Red):** `#C2185B`
 * **Secondary Color (Hot Pink):** `#FF4081`
 * **Text Color (Dark Grey):** `#263238`
-* **Logo Concept:** "The Heart Pin" - A map location pin where the head is a heart shape, featuring a smiling/friendly character style (Cartoonish/Modern Flat).
+* **Logo Concept:** "The Heart Pin" - A map location pin where the head is a heart shape.
 * **Vibe:** Fun, Smart, Romantic, Efficient.
 
 ---
 
-## 6. Data Models (Mongoose Drafts)
+## 6. Data Models
 
-**User Schema:**
+### A. MongoDB (Mongoose)
+
+**User Schema (`User`):**
 ```typescript
 {
-  uid: String, // Firebase UID
-  email: String,
+  uid: { type: String, required: true, unique: true },
+  email: { type: String, required: true },
   name: String,
-  savedLocations: [{ label: String, coords: [Number] }]
+  savedLocations: [{
+    label: String,
+    coords: [Number] // [lat, lng]
+  }]
 }
+```
+
+**Place Schema (`Place`):**
+*Stores raw details to reduce Google API calls (Detail Cache).*
+```typescript
+{
+  googlePlaceId: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  location: { lat: Number, lng: Number },
+  address: String,
+  rating: Number,
+  userRatingsTotal: Number,
+  types: [String],
+  photos: [{
+    photo_reference: String,
+    height: Number,
+    width: Number
+  }],
+  reviews: [{
+    author_name: String,
+    rating: Number,
+    text: String,
+    time: Number
+  }],
+  cachedAt: { type: Date, expires: '7d' } // Auto-delete after 7 days
+}
+```
+
+### B. Pinecone Index (`planli-places`)
+
+* **Vector:** 1536 dimensions.
+* **Metadata Fields:**
+    *   `name`, `vicinity`
+    *   `rating`, `user_ratings_total`
+    *   `types` (Array)
+    *   `richDescription` (AI-generated vibe summary)
+    *   `category` (Food/Drink/Activity)
+    *   `lat`, `lng`
