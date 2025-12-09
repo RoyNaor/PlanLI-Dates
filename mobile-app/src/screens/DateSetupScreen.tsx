@@ -42,30 +42,24 @@ export const DateSetupScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
 
   // --- Handlers ---
-  const handleFinish = async () => {
-    setLoading(true);
-    try {
-        const vibeString = vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : '';
-        const cuisineString = cuisines.length > 0 ? `Cuisine: ${cuisines.join(', ')}` : '';
-        const langContext = i18n.language === 'he' ? "Output language: Hebrew. " : "";
-        const preferences = `${langContext}${budget} budget. ${vibeString}. ${cuisineString}.`;
+  const handleFinish = () => { // כבר לא צריך async כאן
+ // הכנת הנתונים (Payload)
+    const vibeString = vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : '';
+    const cuisineString = cuisines.length > 0 ? `Cuisine: ${cuisines.join(', ')}` : '';
+    const langContext = i18n.language === 'he' ? "Output language: Hebrew. " : "";
+    const preferences = `${langContext}${budget} budget. ${vibeString}. ${cuisineString}.`;
 
-        const payload = {
-            l1,
-            l2,
-            strategy,
-            radius,
-            preferences
-        };
+    const payload = {
+        l1,
+        l2,
+        strategy,
+        radius,
+        preferences
+  };
 
-        const result = await ApiService.post('/dates/calculate', payload);
-        navigation.navigate('DateResults', { result: result.data || result });
-
-    } catch (e: any) {
-        Alert.alert(t('dateSetup.errorTitle'), e.message);
-    } finally {
-        setLoading(false);
-    }
+    // ניווט למסך הטעינה החדש עם הנתונים
+    // שים לב: אנחנו לא קוראים לשרת פה!
+    navigation.navigate('DateGeneration', { payload });
   };
 
   const handleNext = () => {
@@ -164,7 +158,7 @@ export const DateSetupScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
-    paddingTop: 10, // <--- 3. הקטנו את זה קצת כי SafeAreaView נותן מרווח
+    paddingTop: 10,
   },
   progressContainer: {
     marginBottom: 25,

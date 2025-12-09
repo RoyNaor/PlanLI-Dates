@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -10,12 +10,14 @@ import {
   Share, 
   Dimensions,
   Platform,
-  StatusBar 
+  StatusBar,
+  TextInput,
+  Alert
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/styles';
 import { useIsRTL } from '../hooks/useIsRTL';
-import { AiRecommendation } from '../components/VenueCard'; // מייבאים את הממשק
+import { AiRecommendation } from '../components/VenueCard';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 300;
@@ -25,8 +27,13 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   const place = route.params.place as AiRecommendation;
   const details = place.placeDetails || {};
 
+  // --- State ---
+  const [activeTab, setActiveTab] = useState<'info' | 'reviews'>('info'); 
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   // --- Helpers ---
-  
   const handleOpenMap = () => {
     const query = encodeURIComponent(place.search_query);
     const url = Platform.select({
@@ -62,12 +69,19 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
     return '💰'.repeat(level || 2);
   };
 
-  // --- Render Sections ---
+  const handleSubmitReview = () => {
+    if (rating === 0) {
+      Alert.alert('אופס', 'נשמח לדירוג לבבות לפני השליחה ❤️');
+      return;
+    }
+    // TODO: Send to backend
+    setIsSubmitted(true);
+  };
 
   const renderHeaderImages = () => {
     const images = place.imageUrls && place.imageUrls.length > 0 
       ? place.imageUrls 
-      : ['https://via.placeholder.com/400x300.png?text=No+Image']; // Fallback
+      : ['https://via.placeholder.com/400x300.png?text=No+Image']; 
 
     return (
       <View style={styles.imageContainer}>
@@ -87,7 +101,6 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
           ))}
         </ScrollView>
         
-        {/* כפתור חזרה צף */}
         <TouchableOpacity 
           style={[styles.backButton, { [isRTL ? 'right' : 'left']: 20 }]} 
           onPress={() => navigation.goBack()}
@@ -95,7 +108,6 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
           <Ionicons name="arrow-down" size={24} color="#333" />
         </TouchableOpacity>
 
-        {/* אינדיקטור לתמונות (אם יש יותר מאחת) */}
         {images.length > 1 && (
             <View style={styles.paginationBadge}>
                 <Text style={styles.paginationText}>1 / {images.length}</Text>
@@ -105,49 +117,172 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
     );
   };
 
+  // --- TAB SWITCHER ---
+  const renderTabs = () => (
+    <View style={[styles.tabContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'info' && styles.activeTabButton]} 
+            onPress={() => setActiveTab('info')}
+        >
+            <Text style={[styles.tabText, activeTab === 'info' && styles.activeTabText]}>פרטים</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'reviews' && styles.activeTabButton]} 
+            onPress={() => setActiveTab('reviews')}
+        >
+            <Text style={[styles.tabText, activeTab === 'reviews' && styles.activeTabText]}>תגובות</Text>
+        </TouchableOpacity>
+    </View>
+  );
+
+  // --- ACTION BUTTONS (Reusable) ---
   const renderActionButtons = () => (
     <View style={[styles.actionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-      <TouchableOpacity style={styles.actionBtn} onPress={handleOpenMap}>
-        <View style={[styles.iconCircle, { backgroundColor: colors.primary }]}>
-            <Ionicons name="navigate" size={24} color="#fff" />
-        </View>
-        <Text style={styles.actionLabel}>Navigate</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleOpenMap}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary }]}>
+                <Ionicons name="navigate" size={24} color="#fff" />
+            </View>
+            <Text style={styles.actionLabel}>נווט</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.actionBtn} onPress={handleCall} disabled={!details.formatted_phone_number}>
-        <View style={[styles.iconCircle, { backgroundColor: details.formatted_phone_number ? '#4CAF50' : '#ccc' }]}>
-            <Ionicons name="call" size={24} color="#fff" />
-        </View>
-        <Text style={styles.actionLabel}>Call</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleCall} disabled={!details.formatted_phone_number}>
+            <View style={[styles.iconCircle, { backgroundColor: details.formatted_phone_number ? '#4CAF50' : '#ccc' }]}>
+                <Ionicons name="call" size={24} color="#fff" />
+            </View>
+            <Text style={styles.actionLabel}>חייג</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.actionBtn} onPress={handleWebsite} disabled={!details.website}>
-        <View style={[styles.iconCircle, { backgroundColor: details.website ? '#2196F3' : '#ccc' }]}>
-            <Ionicons name="globe-outline" size={24} color="#fff" />
-        </View>
-        <Text style={styles.actionLabel}>Website</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleWebsite} disabled={!details.website}>
+            <View style={[styles.iconCircle, { backgroundColor: details.website ? '#2196F3' : '#ccc' }]}>
+                <Ionicons name="globe-outline" size={24} color="#fff" />
+            </View>
+            <Text style={styles.actionLabel}>אתר</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-        <View style={[styles.iconCircle, { backgroundColor: '#FF9800' }]}>
-            <Ionicons name="share-social" size={24} color="#fff" />
-        </View>
-        <Text style={styles.actionLabel}>Share</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
+            <View style={[styles.iconCircle, { backgroundColor: '#FF9800' }]}>
+                <Ionicons name="share-social" size={24} color="#fff" />
+            </View>
+            <Text style={styles.actionLabel}>שתף</Text>
+        </TouchableOpacity>
     </View>
+  );
+
+  // --- NEW: Interactive PlanLi Card ---
+  const renderInteractivePlanLiCard = () => {
+      if (isSubmitted) {
+        return (
+            <View style={styles.planLiCard}>
+                <View style={{alignItems: 'center', paddingVertical: 20}}>
+                     <Ionicons name="checkmark-circle" size={50} color="#fff" />
+                     <Text style={[styles.planLiTitle, {marginTop: 10}]}>תודה רבה!</Text>
+                     <Text style={[styles.planLiText, {textAlign: 'center'}]}>הקהילה מודה לך ❤️</Text>
+                </View>
+            </View>
+        );
+      }
+
+      return (
+        <View style={styles.planLiCard}>
+            <View style={[styles.planLiHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="people-circle-outline" size={24} color="#fff" />
+                <Text style={[styles.planLiTitle, isRTL ? { marginRight: 8 } : { marginLeft: 8 }]}>
+                    עזרו לקהילה! הייתם פה?
+                </Text>
+            </View>
+            
+            <Text style={[styles.planLiText, { textAlign: isRTL ? 'right' : 'left', marginBottom: 15 }]}>
+                 שתפו אותנו כדי שהאלגוריתם ימצא דייטים מושלמים לאחרים.
+            </Text>
+
+            {/* Rating Stars on Ruby Background */}
+            <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.7}>
+                        <Ionicons 
+                            name={star <= rating ? "heart" : "heart-outline"} 
+                            size={36} 
+                            color="#fff" // כוכבים לבנים על רקע אדום
+                            style={{ marginHorizontal: 6 }}
+                        />
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {/* Input Field - White box inside the red card */}
+            <TextInput
+                style={[styles.cardInput, { textAlign: isRTL ? 'right' : 'left' }]}
+                placeholder="איך הייתה האווירה? ספרו לנו..."
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={2}
+                value={reviewText}
+                onChangeText={setReviewText}
+            />
+
+            <TouchableOpacity style={styles.cardSubmitBtn} onPress={handleSubmitReview}>
+                <Text style={styles.cardSubmitText}>שלח המלצה</Text>
+            </TouchableOpacity>
+        </View>
+      );
+  };
+
+  // --- TAB CONTENT: INFO ---
+  const renderInfoTab = () => (
+    <View style={styles.tabContent}>
+        
+        {/* הכרטיסייה האינטראקטיבית החדשה */}
+        {renderInteractivePlanLiCard()}
+
+        {/* Action Buttons */}
+        {renderActionButtons()}
+
+        <View style={styles.divider} />
+
+        {/* Info Details */}
+        <View style={styles.infoSection}>
+            <View style={[styles.infoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="location-outline" size={22} color="#666" />
+                <Text style={[styles.infoText, { textAlign: isRTL ? 'right' : 'left' }]}>
+                    {details.formatted_address || place.search_query}
+                </Text>
+            </View>
+            
+            {details.opening_hours && (
+                <View style={[styles.infoRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 15 }]}>
+                    <Ionicons name="time-outline" size={22} color="#666" />
+                    <Text style={[styles.infoText, { textAlign: isRTL ? 'right' : 'left', color: details.opening_hours.open_now ? 'green' : 'red' }]}>
+                        {details.opening_hours.open_now ? 'פתוח עכשיו' : 'סגור כרגע'}
+                    </Text>
+                </View>
+            )}
+        </View>
+    </View>
+  );
+
+  // --- TAB CONTENT: REVIEWS (List) ---
+  const renderReviewsTab = () => (
+     <View style={styles.tabContent}>
+        <View style={{marginTop: 50, alignItems: 'center'}}>
+             <Ionicons name="chatbubbles-outline" size={48} color="#ccc" />
+             <Text style={{color: '#999', fontSize: 14, marginTop: 10}}>
+                 בקרוב: קראו מה אחרים חשבו על המקום הזה.
+             </Text>
+        </View>
+     </View>
   );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         
         {renderHeaderImages()}
 
-        {/* התוכן הראשי - עולה קצת על התמונה */}
         <View style={styles.contentContainer}>
             
-            {/* כותרת ופרטים בסיסיים */}
+            {/* Header Info */}
             <View style={[styles.headerSection, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
                 <Text style={styles.title}>{place.name}</Text>
                 <View style={[styles.subHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -160,42 +295,9 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
                 </View>
             </View>
 
-            <View style={styles.divider} />
+            {renderTabs()}
 
-            {/* --- הלב של האפליקציה: הנימוק של ה-AI --- */}
-            <View style={styles.aiBox}>
-                <View style={[styles.aiHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <MaterialCommunityIcons name="robot-happy" size={20} color={colors.primary} />
-                    <Text style={[styles.aiTitle, isRTL ? { marginRight: 6 } : { marginLeft: 6 }]}>Our AI Says:</Text>
-                </View>
-                <Text style={[styles.aiText, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    "{place.description}"
-                </Text>
-            </View>
-
-            {/* כפתורי פעולה */}
-            {renderActionButtons()}
-
-            <View style={styles.divider} />
-
-            {/* פרטים נוספים (כתובת ושעות) */}
-            <View style={styles.infoSection}>
-                <View style={[styles.infoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Ionicons name="location-outline" size={20} color="#666" />
-                    <Text style={[styles.infoText, { textAlign: isRTL ? 'right' : 'left' }]}>
-                        {details.formatted_address || place.search_query}
-                    </Text>
-                </View>
-                
-                {details.opening_hours && (
-                    <View style={[styles.infoRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 10 }]}>
-                        <Ionicons name="time-outline" size={20} color="#666" />
-                        <Text style={[styles.infoText, { textAlign: isRTL ? 'right' : 'left', color: details.opening_hours.open_now ? 'green' : 'red' }]}>
-                            {details.opening_hours.open_now ? 'Open Now' : 'Closed'}
-                        </Text>
-                    </View>
-                )}
-            </View>
+            {activeTab === 'info' ? renderInfoTab() : renderReviewsTab()}
 
         </View>
       </ScrollView>
@@ -230,12 +332,12 @@ const styles = StyleSheet.create({
   paginationText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   
   contentContainer: {
-      marginTop: -20, // כדי שיעלה על התמונה
+      marginTop: -20, 
       backgroundColor: '#fff',
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       padding: 20,
-      minHeight: 500 // שימלא את המסך
+      minHeight: 500 
   },
   headerSection: { marginBottom: 15 },
   title: { fontSize: 26, fontWeight: 'bold', color: '#333', marginBottom: 5 },
@@ -245,22 +347,89 @@ const styles = StyleSheet.create({
   price: { fontSize: 14, color: '#666' },
   dot: { fontSize: 14, color: '#ccc', marginHorizontal: 6 },
   
-  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 20 },
-
-  // AI Box
-  aiBox: {
-      backgroundColor: '#FFF0F5', // ורוד בהיר מאוד
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: '#FFC1E3'
+  // --- TABS ---
+  tabContainer: {
+      flexDirection: 'row',
+      marginBottom: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f0f0f0',
   },
-  aiHeader: { alignItems: 'center', marginBottom: 8 },
-  aiTitle: { fontWeight: 'bold', color: colors.primary, fontSize: 14 },
-  aiText: { fontSize: 15, color: '#444', fontStyle: 'italic', lineHeight: 22 },
+  tabButton: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+  },
+  activeTabButton: { borderBottomColor: colors.primary },
+  tabText: { fontSize: 16, color: '#999', fontWeight: '600' },
+  activeTabText: { color: colors.primary, fontWeight: 'bold' },
+  tabContent: { paddingVertical: 5 },
 
-  // Actions
-  actionsRow: { justifyContent: 'space-around', marginTop: 20 },
+  // --- PLANLI CARD (INTERACTIVE) ---
+  planLiCard: {
+      backgroundColor: colors.primary, 
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 25,
+      elevation: 4,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+  },
+  planLiHeader: {
+      alignItems: 'center',
+      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.2)',
+      paddingBottom: 8
+  },
+  planLiTitle: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+      letterSpacing: 0.5
+  },
+  planLiText: {
+      color: '#fff',
+      fontSize: 14,
+      lineHeight: 20,
+      fontWeight: '500',
+      opacity: 0.95
+  },
+  ratingRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginBottom: 15
+  },
+  cardInput: {
+      backgroundColor: '#fff', // קופסה לבנה בתוך הכרטיס
+      borderRadius: 10,
+      padding: 12,
+      height: 60,
+      textAlignVertical: 'top',
+      fontSize: 14,
+      color: '#333',
+      marginBottom: 12
+  },
+  cardSubmitBtn: {
+      backgroundColor: 'rgba(0,0,0,0.3)', // כפתור כהה מעודן על הרקע האדום
+      paddingVertical: 10,
+      borderRadius: 20,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)'
+  },
+  cardSubmitText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 14
+  },
+
+  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 25 },
+  
+  actionsRow: { justifyContent: 'space-around', marginTop: 10 },
   actionBtn: { alignItems: 'center' },
   iconCircle: {
       width: 50, height: 50, borderRadius: 25,
@@ -273,9 +442,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: { fontSize: 12, color: '#666', fontWeight: '500' },
 
-  // Info
   infoSection: {},
-  infoRow: { alignItems: 'flex-start' },
-  infoText: { fontSize: 15, color: '#333', marginHorizontal: 10, flex: 1, lineHeight: 20 }
+  infoRow: { alignItems: 'center' }, 
+  infoText: { fontSize: 15, color: '#333', marginHorizontal: 12, flex: 1, lineHeight: 22 },
 });
-

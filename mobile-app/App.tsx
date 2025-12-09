@@ -10,6 +10,7 @@ import { auth } from './src/config/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ActivityIndicator, View } from 'react-native';
 import { PlaceDetailsScreen } from './src/screens/PlaceDetailsScreen'; 
+import { DateGenerationScreen } from './src/screens/DateGenerationScreen';
 import { colors } from './src/theme/styles';
 
 const Stack = createNativeStackNavigator();
@@ -46,6 +47,11 @@ export default function App() {
                 name="DateResults" 
                 component={DateResultsScreen} 
                 options={{ presentation: 'modal' }} 
+            />
+            <Stack.Screen 
+                name="DateGeneration" 
+                component={DateGenerationScreen} 
+                options={{ headerShown: false }} 
             />
             <Stack.Screen 
                 name="PlaceDetails" 
