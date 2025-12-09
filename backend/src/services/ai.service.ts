@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { Coordinates } from '../utils/geo.utils';
 import { searchSimilarPlaces, savePlaceToPinecone } from './pinecone.service';
 import { searchGooglePlaces, GooglePlace } from './google-maps.service';
+import PlaceStats from '../models/PlaceStats';
 
 dotenv.config();
 
@@ -17,7 +18,14 @@ export interface AiRecommendation {
   category: 'Food' | 'Drink' | 'Activity' | 'Nature' | 'Culture';
   timeOfDay: 'Day' | 'Night' | 'Any';
   imageUrls: string[];
-  placeDetails?: any;
+  placeDetails?: {
+    place_id: string;
+    planLi?: {
+        rating: number;
+        reviewCount: number;
+    };
+    [key: string]: any;
+  };
 }
 
 // פונקציית עזר לבניית לינק לתמונה
@@ -181,6 +189,22 @@ export const generateDateIdeas = async (
       ...cachedRecommendations,
       ...googleWithoutDuplicates
     ].slice(0, 6);
+
+    // Enrich with PlanLi stats
+    const placeIds = finalRecommendations.map(r => r.placeDetails?.place_id).filter(Boolean);
+    const statsList = await PlaceStats.find({ googlePlaceId: { $in: placeIds } });
+
+    const statsMap = new Map(statsList.map(s => [s.googlePlaceId, s]));
+
+    finalRecommendations.forEach(rec => {
+        if (rec.placeDetails && rec.placeDetails.place_id) {
+            const stats = statsMap.get(rec.placeDetails.place_id);
+            rec.placeDetails.planLi = {
+                rating: stats ? stats.averageRating : 0,
+                reviewCount: stats ? stats.reviewCount : 0
+            };
+        }
+    });
 
     console.log(
       `✅ Returning ${finalRecommendations.length} merged recommendations (${cachedRecommendations.length} from cache, ${

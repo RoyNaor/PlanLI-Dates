@@ -19,7 +19,41 @@ export interface GooglePlace {
     rating?: number;
     user_ratings_total?: number;
     photos?: { photo_reference: string }[];
+    reviews?: {
+        author_name: string;
+        rating: number;
+        text: string;
+        time: number;
+    }[];
 }
+
+export const getGooglePlaceDetails = async (placeId: string): Promise<GooglePlace | null> => {
+    if (!GOOGLE_MAPS_API_KEY) {
+        console.error("❌ Missing GOOGLE_MAPS_API_KEY");
+        return null;
+    }
+
+    try {
+        const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+            params: {
+                place_id: placeId,
+                key: GOOGLE_MAPS_API_KEY,
+                // fields: 'place_id,name,formatted_address,geometry,rating,user_ratings_total,types,photos,reviews'
+            }
+        });
+
+        if (response.data.status !== 'OK') {
+            console.error(`Google Places Details API Error: ${response.data.status}`);
+            return null;
+        }
+
+        return response.data.result as GooglePlace;
+
+    } catch (error) {
+        console.error("Error fetching place details from Google Maps:", error);
+        return null;
+    }
+};
 
 /**
  * פונה לגוגל ומחזיר רשימה של מקומות רלוונטיים
