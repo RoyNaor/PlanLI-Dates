@@ -3,6 +3,50 @@ import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'; 
 import { useIsRTL } from '../hooks/useIsRTL';
 
+// --- Type Definitions matching Backend ---
+
+export interface PlanLiReview {
+  _id?: string;
+  googlePlaceId: string;
+  userId: string;
+  authorName: string;
+  rating: number;
+  content: string;
+  createdAt?: string;
+}
+
+export interface PlanLiStats {
+  rating: number;
+  reviewCount: number;
+  reviews: PlanLiReview[];
+}
+
+// Mimics the "GooglePlace" interface from backend + our extensions
+export interface PlaceDetails {
+  place_id?: string;
+  googlePlaceId?: string; // Internal DB often uses this
+  name?: string;
+  formatted_address?: string;
+  formatted_phone_number?: string;
+  website?: string;
+  price_level?: number;
+  opening_hours?: {
+    open_now: boolean;
+    periods?: any[];
+    weekday_text?: string[];
+  };
+  rating?: number; // Google Rating
+  user_ratings_total?: number;
+  geometry?: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  photos?: { photo_reference: string }[];
+  planLi?: PlanLiStats; // The new UGC object
+}
+
 export interface AiRecommendation {
   name: string;
   search_query: string;
@@ -10,8 +54,17 @@ export interface AiRecommendation {
   matchScore: number;
   category: string;
   timeOfDay: string;
-  imageUrls: string[]; // <--- המידע מגיע מכאן
-  placeDetails?: any;
+  imageUrls: string[];
+
+  // ID references (Flat or inside placeDetails)
+  place_id?: string;
+  googlePlaceId?: string;
+
+  // Detailed Data
+  placeDetails?: PlaceDetails;
+
+  // Fallback for flat structure if needed
+  planLi?: PlanLiStats;
 }
 
 interface Props {
@@ -39,25 +92,23 @@ const getTimeIcon = (time: string) => {
 
 export const VenueCard = ({ item, onPress }: Props) => {
   const isRTL = useIsRTL();
-  const googleData = item.placeDetails;
+
+  // Safe Access to Rating: Try PlanLi first, then Google, then item root
+  const planLiRating = item.planLi?.rating || item.placeDetails?.planLi?.rating;
+  const googleRating = item.placeDetails?.rating;
+  const displayRating = planLiRating || googleRating;
+
   const catConfig = getCategoryConfig(item.category || 'General'); 
   const timeOfDay = item.timeOfDay || 'Any';
 
   // --- הלוגיקה החדשה: לוקחים תמונה מהמערך שהשרת שלח ---
   const photoUrl = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : null;
 
-  // תמונת גיבוי למקרה שאין תמונה
-  const renderFallbackImage = () => (
-      <View style={[styles.fallbackContainer, { backgroundColor: catConfig.color }]}>
-          <MaterialCommunityIcons name={catConfig.icon as any} size={50} color="rgba(255,255,255,0.5)" />
-      </View>
-  );
-
   // תוכן הכרטיס (משותף לשני המצבים)
   const CardContent = () => {
       // אם יש תמונה, הטקסט לבן. אם אין, הוא כהה.
       const titleColor = photoUrl ? '#fff' : '#333';
-      const descColor = photoUrl ? '#eee' : '#666';
+
       // רקע כהה לתגיות אם יש תמונה
       const tagBg = photoUrl ? 'rgba(0,0,0,0.6)' : `${catConfig.color}20`; 
       const tagTextColor = photoUrl ? '#fff' : catConfig.color;
@@ -95,10 +146,10 @@ export const VenueCard = ({ item, onPress }: Props) => {
                     </View>
                     
                     {/* תגית דירוג */}
-                    {googleData?.rating && (
+                    {displayRating && (
                         <View style={[styles.tag, { backgroundColor: photoUrl ? 'rgba(0,0,0,0.6)' : '#FFF8E1' }]}>
                             <Ionicons name="star" size={10} color="#FFA000" style={isRTL ? { marginLeft: 4 } : { marginRight: 4 }} />
-                            <Text style={[styles.tagText, { color: photoUrl ? '#fff' : '#FFA000' }]}>{googleData.rating}</Text>
+                            <Text style={[styles.tagText, { color: photoUrl ? '#fff' : '#FFA000' }]}>{Number(displayRating).toFixed(1)}</Text>
                         </View>
                     )}
                 </View>
@@ -162,11 +213,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
-  fallbackContainer: {
-      ...StyleSheet.absoluteFillObject,
-      justifyContent: 'center',
-      alignItems: 'center',
-  },
   darkOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.25)', // שכבת כהות כדי שהטקסט יבלוט
@@ -225,15 +271,6 @@ const styles = StyleSheet.create({
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 4,
       marginBottom: 4,
-  },
-  description: {
-      fontSize: 13,
-      color: '#eee',
-      marginBottom: 10,
-      fontWeight: '500',
-      textShadowColor: 'rgba(0, 0, 0, 0.75)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 3
   },
   tagsRow: {
       flexWrap: 'wrap',

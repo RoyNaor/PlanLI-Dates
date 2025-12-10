@@ -102,7 +102,10 @@ export const searchGooglePlaces = async (
             'liquor_store', 
             'home_goods_store', 'furniture_store', 'hardware_store', 
             'clothing_store', 'shoe_store', 'electronics_store', 
-            'pet_store', 'office_equipment_store',
+            'pet_store', 'office_equipment_store','Deli',
+
+            'travel_agency', 'tourist_attraction', 'lodging', 'airport', 'bus_station', 
+            'subway_station', 'train_station', 'taxi_stand',
             
           
             'meal_delivery', 'meal_takeaway',
