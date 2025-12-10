@@ -2,7 +2,7 @@ import { auth } from '../config/firebase';
 
 // For Android Emulator use 10.0.2.2, for iOS Simulator use localhost.
 // If testing on physical device, use your machine's LAN IP.
-const BASE_URL = 'http://172.20.10.2:3000/api';
+const BASE_URL = 'http://10.100.102.6:3000/api';
 
 class ApiServiceClass {
     private async getHeaders() {
@@ -36,7 +36,6 @@ class ApiServiceClass {
 
     async get<T>(endpoint: string): Promise<T> {
         const headers = await this.getHeaders();
-        console.log(`GET ${BASE_URL}${endpoint}`);
         const response = await fetch(`${BASE_URL}${endpoint}`, {
             method: 'GET',
             headers
@@ -46,7 +45,6 @@ class ApiServiceClass {
 
     async post<T>(endpoint: string, data: any): Promise<T> {
         const headers = await this.getHeaders();
-        console.log(`POST ${BASE_URL}${endpoint}`, data);
         const response = await fetch(`${BASE_URL}${endpoint}`, {
             method: 'POST',
             headers,

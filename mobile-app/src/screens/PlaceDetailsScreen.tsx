@@ -165,9 +165,6 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   };
 
   const renderHeaderImages = () => {
-    // Always use baseData images to prevent flicker.
-    // If server provides new photos, we could potentially merge them,
-    // but usually baseData has the high-quality ones from the search.
     const images = baseData.imageUrls && baseData.imageUrls.length > 0
       ? baseData.imageUrls
       : ['https://via.placeholder.com/400x300.png?text=No+Image']; 
@@ -439,7 +436,7 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
                     <Ionicons name="star" size={14} color="#FFD700" />
                     <Text style={styles.rating}>
                         {planLi?.rating
-                            ? `${planLi.rating.toFixed(1)} (PlanLi)`
+                            ? `${planLi.rating.toFixed(1)}`
                             : (details.rating || 'New')
                         }
                     </Text>
