@@ -256,13 +256,26 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   );
 
   const renderReviewsTab = () => (
-    <ReviewsList
-      reviews={planLi?.reviews || []}
-      onReply={handleReply}
-      onToggleLike={handleToggleLike}
-      currentUserId={auth.currentUser?.uid}
-      isRTL={isRTL}
-    />
+    <View style={styles.reviewTabContent}>
+      <ReviewFormCard
+        rating={rating}
+        onRatingChange={setRating}
+        reviewText={reviewText}
+        onReviewTextChange={setReviewText}
+        onSubmit={handleSubmitReview}
+        submitting={submitting}
+        isSubmitted={isSubmitted}
+        isRTL={isRTL}
+      />
+
+      <ReviewsList
+        reviews={planLi?.reviews || []}
+        onReply={handleReply}
+        onToggleLike={handleToggleLike}
+        currentUserId={auth.currentUser?.uid}
+        isRTL={isRTL}
+      />
+    </View>
   );
 
   if (loading) {
@@ -337,7 +350,8 @@ const styles = StyleSheet.create({
   },
   activeTabButton: { borderBottomColor: colors.primary },
   tabText: { fontSize: 16, color: '#999', fontWeight: '600' },
-  activeTabText: { color: colors.primary, fontWeight: 'bold' }
+  activeTabText: { color: colors.primary, fontWeight: 'bold' },
+  reviewTabContent: { paddingVertical: 5 }
 });
 
 export default PlaceDetailsScreen;
