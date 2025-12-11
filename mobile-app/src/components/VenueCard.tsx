@@ -5,14 +5,19 @@ import { useIsRTL } from '../hooks/useIsRTL';
 
 // --- Type Definitions matching Backend ---
 
-export interface PlanLiReview {
+export interface PlanLiReply {
   _id?: string;
-  googlePlaceId: string;
   userId: string;
   authorName: string;
-  rating: number;
   content: string;
   createdAt?: string;
+  likes?: string[];
+  replies?: PlanLiReply[];
+}
+
+export interface PlanLiReview extends PlanLiReply {
+  googlePlaceId: string;
+  rating: number;
 }
 
 export interface PlanLiStats {

@@ -1,22 +1,31 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Review from '../models/Review';
 import PlaceStats from '../models/PlaceStats';
 import Place from '../models/place.model';
 import { getGooglePlaceDetails } from '../services/google-maps.service';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const createReview = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { googlePlaceId, rating, content, userId, authorName } = req.body;
+    const authReq = req as AuthRequest;
+    const user = authReq.user;
+    const { googlePlaceId, rating, content } = req.body;
 
-    if (!googlePlaceId || !rating || !content || !userId) {
+    if (!user) {
+      res.status(401).json({ message: 'Unauthorized: No user found on request' });
+      return;
+    }
+
+    if (!googlePlaceId || !rating || !content) {
       res.status(400).json({ message: 'Missing required fields' });
       return;
     }
 
     const review = new Review({
       googlePlaceId,
-      userId,
-      authorName: authorName || 'Anonymous',
+      userId: user.uid,
+      authorName: user.name || user.email || 'Anonymous',
       rating,
       content
     });
@@ -41,6 +50,88 @@ export const createReview = async (req: Request, res: Response): Promise<void> =
     res.status(201).json(review);
   } catch (error) {
     console.error('Error creating review:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const addReply = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    const user = authReq.user;
+    const { reviewId } = req.params;
+    const { content } = req.body;
+
+    if (!user) {
+      res.status(401).json({ message: 'Unauthorized: No user found on request' });
+      return;
+    }
+
+    if (!content) {
+      res.status(400).json({ message: 'Reply content is required' });
+      return;
+    }
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      res.status(404).json({ message: 'Review not found' });
+      return;
+    }
+
+    const reply = {
+      _id: new mongoose.Types.ObjectId(),
+      userId: user.uid,
+      authorName: user.name || user.email || 'Anonymous',
+      content,
+      createdAt: new Date(),
+      likes: []
+    };
+
+    review.replies.push(reply as any);
+    await review.save();
+
+    res.status(201).json(review);
+  } catch (error) {
+    console.error('Error adding reply:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const toggleLike = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    const user = authReq.user;
+    const { reviewId } = req.params;
+
+    if (!user) {
+      res.status(401).json({ message: 'Unauthorized: No user found on request' });
+      return;
+    }
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      res.status(404).json({ message: 'Review not found' });
+      return;
+    }
+
+    const hasLiked = review.likes.includes(user.uid);
+
+    if (hasLiked) {
+      review.likes = review.likes.filter((id) => id !== user.uid);
+    } else {
+      review.likes.push(user.uid);
+    }
+
+    await review.save();
+
+    res.json({
+      likesCount: review.likes.length,
+      liked: !hasLiked,
+      review
+    });
+  } catch (error) {
+    console.error('Error toggling like:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
