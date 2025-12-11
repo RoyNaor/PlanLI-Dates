@@ -266,6 +266,7 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
         submitting={submitting}
         isSubmitted={isSubmitted}
         isRTL={isRTL}
+        variant="minimal"
       />
 
       <ReviewsList
