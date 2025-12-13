@@ -22,6 +22,8 @@ import HeaderImages from '../components/place-details/HeaderImages';
 import InfoTab from '../components/place-details/InfoTab';
 import ReviewFormCard from '../components/place-details/ReviewFormCard';
 import ReviewsList from '../components/place-details/ReviewsList';
+import { getPlaceId } from '../utils/places';
+import { SavedDatesService } from '../services/savedDates';
 
 export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   const isRTL = useIsRTL();
@@ -35,6 +37,8 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   const [reviewText, setReviewText] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const displayData: AiRecommendation = {
     ...baseData,
@@ -47,7 +51,7 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
 
   const details = displayData.placeDetails || {};
   const planLi = details.planLi;
-  const placeId = details.place_id || baseData.place_id || baseData.googlePlaceId || details.googlePlaceId;
+  const placeId = getPlaceId({ ...baseData, placeDetails: details });
 
   const fetchDetails = useCallback(async () => {
     if (!placeId) {
@@ -69,6 +73,16 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     fetchDetails();
   }, [fetchDetails]);
+
+  useEffect(() => {
+    const checkSaved = async () => {
+      if (!placeId) return;
+      const saved = await SavedDatesService.isDateSaved(placeId);
+      setIsSaved(saved);
+    };
+
+    checkSaved();
+  }, [placeId]);
 
   const updatePlanLiReviews = useCallback(
     (updater: (reviews: PlanLiReview[]) => PlanLiReview[] | PlanLiReview[]) => {
@@ -152,6 +166,30 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
       Alert.alert('שגיאה', 'לא הצלחנו לשלוח את הביקורת. נסה שוב.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveDate = async () => {
+    if (!placeId) {
+      Alert.alert('שגיאה', 'לא מצאנו מזהה מקום לשמירה');
+      return;
+    }
+
+    if (saving || isSaved) return;
+
+    setSaving(true);
+    try {
+      await SavedDatesService.saveDate({
+        placeId,
+        place: displayData
+      });
+      setIsSaved(true);
+      Alert.alert('נשמר', 'הדייט נוסף לרשימת השמורים שלך');
+    } catch (error) {
+      console.error('Failed to save date', error);
+      Alert.alert('שגיאה', 'לא הצלחנו לשמור את הדייט. נסה שוב.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -294,6 +332,22 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
               <Text style={styles.dot}>•</Text>
               <Text style={styles.price}>{details.price_level ? '💰'.repeat(details.price_level) : ''}</Text>
             </View>
+
+            <TouchableOpacity
+              style={[styles.saveButton, isSaved && styles.saveButtonSaved]}
+              onPress={handleSaveDate}
+              disabled={saving || isSaved}
+            >
+              <Ionicons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={isSaved ? '#fff' : colors.primary}
+                style={isRTL ? { marginLeft: 8 } : { marginRight: 8 }}
+              />
+              <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextSaved]}>
+                {isSaved ? 'נשמר' : saving ? 'שומר...' : 'שמור דייט'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {renderTabs()}
@@ -337,7 +391,29 @@ const styles = StyleSheet.create({
   },
   activeTabButton: { borderBottomColor: colors.primary },
   tabText: { fontSize: 16, color: '#999', fontWeight: '600' },
-  activeTabText: { color: colors.primary, fontWeight: 'bold' }
+  activeTabText: { color: colors.primary, fontWeight: 'bold' },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: '#fff'
+  },
+  saveButtonSaved: {
+    backgroundColor: colors.primary
+  },
+  saveButtonText: {
+    color: colors.primary,
+    fontWeight: '700'
+  },
+  saveButtonTextSaved: {
+    color: '#fff'
+  }
 });
 
 export default PlaceDetailsScreen;
