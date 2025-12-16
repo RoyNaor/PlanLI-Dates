@@ -1,11 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal,
+  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,25 +16,70 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { colors } from '../theme/styles';
 import { SavedDatesService } from '../services/savedDates';
-import { SavedDateEntry } from '../utils/places';
+import { SavedDateEntry, SavedPlaylist } from '../utils/places';
 
 export const SavedDatesScreen = () => {
   const navigation = useNavigation<any>();
   const [savedDates, setSavedDates] = useState<SavedDateEntry[]>([]);
+  const [playlists, setPlaylists] = useState<SavedPlaylist[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadSavedDates = useCallback(async () => {
     setLoading(true);
-    const dates = await SavedDatesService.getSavedDates();
+    const [dates, lists] = await Promise.all([
+      SavedDatesService.getSavedDates(selectedPlaylist || undefined),
+      SavedDatesService.getPlaylists()
+    ]);
     setSavedDates(dates);
+    setPlaylists(lists);
     setLoading(false);
-  }, []);
+  }, [selectedPlaylist]);
 
   useFocusEffect(
     useCallback(() => {
       loadSavedDates();
     }, [loadSavedDates])
   );
+
+  const activePlaylistLabel = useMemo(() => {
+    if (!selectedPlaylist) return 'הכל';
+    const match = playlists.find((playlist) => playlist.id === selectedPlaylist);
+    return match?.name || 'הכל';
+  }, [playlists, selectedPlaylist]);
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      return;
+    }
+
+    const updated = await SavedDatesService.addPlaylist(newPlaylistName);
+    setPlaylists(updated);
+    const created = updated[updated.length - 1];
+    setSelectedPlaylist(created.id);
+    setNewPlaylistName('');
+    setShowPlaylistModal(false);
+  };
+
+  const formatSavedAt = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+
+    const diffSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSeconds < 60) return 'לפני רגע';
+    if (diffSeconds < 3600) return `לפני ${Math.floor(diffSeconds / 60)} דקות`;
+    if (diffSeconds < 86400) return `לפני ${Math.floor(diffSeconds / 3600)} שעות`;
+    if (diffSeconds < 604800) return `לפני ${Math.floor(diffSeconds / 86400)} ימים`;
+    return date.toLocaleDateString('he-IL');
+  };
+
+  const resolvePlaylistName = (playlistId?: string) => {
+    if (!playlistId) return playlists[0]?.name;
+    return playlists.find((pl) => pl.id === playlistId)?.name;
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyState}>
@@ -45,10 +92,8 @@ export const SavedDatesScreen = () => {
   );
 
   const renderItem = ({ item }: { item: SavedDateEntry }) => {
-    const savedDate = item.savedAt ? new Date(item.savedAt) : null;
-    const savedLabel = savedDate
-      ? savedDate.toLocaleDateString('he-IL')
-      : '';
+    const savedLabel = formatSavedAt(item.savedAt);
+    const playlistName = resolvePlaylistName(item.playlistId);
 
     return (
       <TouchableOpacity
@@ -71,8 +116,10 @@ export const SavedDatesScreen = () => {
 
         <Text style={styles.cardMeta}>{item.place.category}</Text>
 
+        {playlistName && <Text style={styles.cardMeta}>רשימה: {playlistName}</Text>}
+
         {savedLabel && (
-          <Text style={styles.cardDate}>נשמר ב־ {savedLabel}</Text>
+          <Text style={styles.cardDate}>נשמר {savedLabel}</Text>
         )}
 
         {/* <Text style={styles.cardDescription} numberOfLines={2}>
@@ -101,13 +148,81 @@ export const SavedDatesScreen = () => {
       ) : savedDates.length === 0 ? (
         renderEmpty()
       ) : (
-        <FlatList
-          data={savedDates}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.placeId}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          <View style={styles.playlistHeader}>
+            <Text style={styles.sectionTitle}>רשימות</Text>
+
+            <TouchableOpacity style={styles.addListButton} onPress={() => setShowPlaylistModal(true)}>
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.addListButtonText}>רשימה חדשה</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={[{ id: 'all', name: 'הכל' } as SavedPlaylist, ...playlists]}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.playlistChip,
+                  selectedPlaylist === item.id || (!selectedPlaylist && item.id === 'all')
+                    ? styles.playlistChipActive
+                    : undefined
+                ]}
+                onPress={() =>
+                  item.id === 'all' ? setSelectedPlaylist(null) : setSelectedPlaylist(item.id)
+                }
+              >
+                <Text
+                  style={[
+                    styles.playlistChipText,
+                    selectedPlaylist === item.id || (!selectedPlaylist && item.id === 'all')
+                      ? styles.playlistChipTextActive
+                      : undefined
+                  ]}
+                >
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.playlistList}
+          />
+
+          <Text style={styles.sectionTitle}>דייטים ב{activePlaylistLabel === 'הכל' ? '' : '־'}{activePlaylistLabel}</Text>
+
+          <FlatList
+            data={savedDates}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.placeId}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+
+          <Modal visible={showPlaylistModal} animationType="slide" transparent>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>רשימה חדשה</Text>
+                <TextInput
+                  value={newPlaylistName}
+                  onChangeText={setNewPlaylistName}
+                  placeholder="לדוגמה: תל אביב או שמור לאחר כך"
+                  style={styles.textInput}
+                  placeholderTextColor={colors.textLight}
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => setShowPlaylistModal(false)}>
+                    <Text style={styles.cancelButtonText}>ביטול</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.confirmButton} onPress={handleCreatePlaylist}>
+                    <Text style={styles.confirmButtonText}>צור</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </>
       )}
     </SafeAreaView>
   );
@@ -144,6 +259,56 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingBottom: 80
+  },
+
+  playlistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text
+  },
+  addListButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12
+  },
+  addListButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    marginLeft: 6
+  },
+  playlistList: {
+    gap: 8,
+    paddingBottom: 4,
+    marginBottom: 8
+  },
+  playlistChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: `${colors.primary}15`,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginRight: 8
+  },
+  playlistChipActive: {
+    backgroundColor: `${colors.primary}20`,
+    borderColor: colors.primary
+  },
+  playlistChipText: {
+    color: colors.text,
+    fontWeight: '600'
+  },
+  playlistChipTextActive: {
+    color: colors.primary
   },
 
   /* ===== Empty State ===== */
@@ -219,5 +384,57 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '600',
     fontSize: 12
+  },
+
+  /* ===== Modal ===== */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    gap: 12
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.text
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12
+  },
+  cancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  cancelButtonText: {
+    color: colors.text,
+    fontWeight: '600'
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontWeight: '700'
   }
 });
