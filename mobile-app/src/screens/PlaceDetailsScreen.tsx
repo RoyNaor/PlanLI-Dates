@@ -194,7 +194,22 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
       return;
     }
 
-    if (saving || isSaved) return;
+    if (saving) return;
+
+    if (isSaved) {
+      setSaving(true);
+      try {
+        await SavedDatesService.removeDate(placeId);
+        setIsSaved(false);
+        Alert.alert('הוסר', 'הדייט הוסר מהשמורים');
+      } catch (error) {
+        console.error('Failed to remove saved date', error);
+        Alert.alert('שגיאה', 'לא הצלחנו להסיר את הדייט. נסה שוב.');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
 
     if (playlists.length === 0) {
       const lists = await SavedDatesService.getPlaylists();
@@ -382,7 +397,7 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
             <TouchableOpacity
               style={[styles.saveButton, isSaved && styles.saveButtonSaved]}
               onPress={handleSaveDate}
-              disabled={saving || isSaved}
+              disabled={saving}
             >
               <Ionicons
                 name={isSaved ? 'bookmark' : 'bookmark-outline'}
@@ -391,7 +406,7 @@ export const PlaceDetailsScreen = ({ route, navigation }: any) => {
                 style={isRTL ? { marginLeft: 8 } : { marginRight: 8 }}
               />
               <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextSaved]}>
-                {isSaved ? 'נשמר' : saving ? 'שומר...' : 'שמור דייט'}
+                {isSaved ? (saving ? 'מסיר...' : 'הסר שמירה') : saving ? 'שומר...' : 'שמור דייט'}
               </Text>
             </TouchableOpacity>
           </View>

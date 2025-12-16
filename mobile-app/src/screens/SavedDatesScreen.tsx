@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   I18nManager,
-  Alert // <--- הוספנו את זה
+  Alert,
+  Modal,
+  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +28,10 @@ export const SavedDatesScreen = () => {
   const [playlists, setPlaylists] = useState<SavedPlaylist[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingDate, setEditingDate] = useState<SavedDateEntry | null>(null);
+  const [modalSelectedPlaylist, setModalSelectedPlaylist] = useState<string | null>(null);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
 
   const loadSavedDates = useCallback(async () => {
     setLoading(true);
@@ -92,6 +98,40 @@ export const SavedDatesScreen = () => {
     return playlists.find((p) => p.id === playlistId)?.name;
   };
 
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    setEditingDate(null);
+    setNewPlaylistName('');
+    setModalSelectedPlaylist(null);
+  };
+
+  const openEditModal = (date: SavedDateEntry) => {
+    setEditingDate(date);
+    setModalSelectedPlaylist(date.playlistId || playlists[0]?.id || null);
+    setEditModalVisible(true);
+  };
+
+  const handleConfirmPlaylistChange = async () => {
+    if (!editingDate || !modalSelectedPlaylist) {
+      Alert.alert('שגיאה', 'בחר רשימה לשיוך');
+      return;
+    }
+
+    await SavedDatesService.updateDatePlaylist(editingDate.placeId, modalSelectedPlaylist);
+    closeEditModal();
+    await loadSavedDates();
+  };
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return;
+
+    const updatedLists = await SavedDatesService.addPlaylist(newPlaylistName);
+    setPlaylists(updatedLists);
+    const created = updatedLists[updatedLists.length - 1];
+    setModalSelectedPlaylist(created.id);
+    setNewPlaylistName('');
+  };
+
   const renderEmpty = () => (
     <View style={styles.emptyState}>
       <Ionicons name="bookmark-outline" size={48} color={colors.primary} />
@@ -114,21 +154,30 @@ export const SavedDatesScreen = () => {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
-            
+
             {/* שם המקום */}
             <Text style={styles.cardTitle} numberOfLines={1}>
               {item.place.name}
             </Text>
 
-            {/* כפתור מחיקה (במקום ה-Badge הסטטי) */}
-            <TouchableOpacity 
-                style={styles.deleteButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // מגדיל את שטח הלחיצה
-                onPress={() => handleRemoveItem(item.placeId, item.place.name)}
-            >
-                <Ionicons name="trash-outline" size={18} color={colors.error || '#FF4444'} />
-                {/* אופציונלי: טקסט קטן ליד האייקון, לדעתי עדיף בלי כדי לשמור על נראות נקייה */}
-            </TouchableOpacity>
+            <View style={styles.actionButtons}>
+              {/* כפתור מחיקה (במקום ה-Badge הסטטי) */}
+              <TouchableOpacity
+                  style={styles.deleteButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // מגדיל את שטח הלחיצה
+                  onPress={() => handleRemoveItem(item.placeId, item.place.name)}
+              >
+                  <Ionicons name="trash-outline" size={18} color={colors.error || '#FF4444'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.editButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() => openEditModal(item)}
+              >
+                <Ionicons name="pencil" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
 
           </View>
         </View>
@@ -222,6 +271,60 @@ export const SavedDatesScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <Modal transparent visible={editModalVisible} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>שיוך לרשימה</Text>
+
+            <View style={styles.playlistSection}>
+              {playlists.map((playlist) => (
+                <TouchableOpacity
+                  key={playlist.id}
+                  style={[
+                    styles.playlistOption,
+                    modalSelectedPlaylist === playlist.id && styles.playlistOptionActive
+                  ]}
+                  onPress={() => setModalSelectedPlaylist(playlist.id)}
+                >
+                  <Text
+                    style={[
+                      styles.playlistOptionText,
+                      modalSelectedPlaylist === playlist.id && styles.playlistOptionTextActive
+                    ]}
+                  >
+                    {playlist.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.newPlaylistContainer}>
+              <Text style={styles.modalSubtitle}>או צור רשימה חדשה</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="לדוגמה: תל אביב או לשמור לאחר כך"
+                placeholderTextColor={colors.textLight}
+                value={newPlaylistName}
+                onChangeText={setNewPlaylistName}
+              />
+              <TouchableOpacity style={styles.addPlaylistButton} onPress={handleCreatePlaylist}>
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={styles.addPlaylistButtonText}>הוסף רשימה</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={closeEditModal}>
+                <Text style={styles.secondaryButtonText}>ביטול</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleConfirmPlaylistChange}>
+                <Text style={styles.primaryButtonText}>עדכן</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -346,11 +449,23 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginLeft: 10 // מרווח קטן מהאייקון של המחיקה
   },
-  
+
+  actionButtons: {
+    alignItems: 'center',
+    gap: 8,
+    flexDirection: 'column'
+  },
+
   // סגנון חדש לכפתור המחיקה
   deleteButton: {
     padding: 8,
     backgroundColor: '#FFEBEB', // רקע אדמדם עדין מאוד
+    borderRadius: 8,
+  },
+
+  editButton: {
+    padding: 8,
+    backgroundColor: `${colors.primary}15`,
     borderRadius: 8,
   },
 
@@ -365,5 +480,108 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginTop: 6,
     textAlign: 'right'
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    gap: 12
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'right'
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 6,
+    textAlign: 'right'
+  },
+  playlistSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 6,
+    justifyContent: 'flex-end'
+  },
+  playlistOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  playlistOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}15`
+  },
+  playlistOptionText: {
+    color: colors.text,
+    fontWeight: '600'
+  },
+  playlistOptionTextActive: {
+    color: colors.primary
+  },
+  newPlaylistContainer: {
+    gap: 8,
+    marginTop: 4
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.text,
+    textAlign: 'right'
+  },
+  addPlaylistButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  addPlaylistButtonText: {
+    color: '#fff',
+    fontWeight: '700'
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8
+  },
+  secondaryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontWeight: '600'
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700'
   }
 });
