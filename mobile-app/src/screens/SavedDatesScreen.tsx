@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  TextInput
+  TextInput,
+  I18nManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +21,7 @@ import { SavedDateEntry, SavedPlaylist } from '../utils/places';
 
 export const SavedDatesScreen = () => {
   const navigation = useNavigation<any>();
+  const isRTL = I18nManager.isRTL;
   const [savedDates, setSavedDates] = useState<SavedDateEntry[]>([]);
   const [playlists, setPlaylists] = useState<SavedPlaylist[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
@@ -149,35 +151,64 @@ export const SavedDatesScreen = () => {
         renderEmpty()
       ) : (
         <>
-          <View style={styles.playlistHeader}>
+          <View style={[styles.playlistHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text style={styles.sectionTitle}>רשימות</Text>
-
-            <TouchableOpacity style={styles.addListButton} onPress={() => setShowPlaylistModal(true)}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.addListButtonText}>רשימה חדשה</Text>
-            </TouchableOpacity>
+            {selectedPlaylist && (
+              <TouchableOpacity
+                style={[styles.backToAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                onPress={() => setSelectedPlaylist(null)}
+              >
+                <Ionicons
+                  name={isRTL ? 'chevron-forward' : 'chevron-back'}
+                  size={16}
+                  color={colors.primary}
+                  style={isRTL ? { marginLeft: 6 } : { marginRight: 6 }}
+                />
+                <Text style={styles.backToAllText}>חזרה לכל הדייטים</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <FlatList
-            data={[{ id: 'all', name: 'הכל' } as SavedPlaylist, ...playlists]}
+            data={[
+              { id: 'all', name: 'הכל' } as SavedPlaylist,
+              ...playlists,
+              { id: 'add', name: 'רשימה חדשה' } as SavedPlaylist
+            ]}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
                   styles.playlistChip,
                   selectedPlaylist === item.id || (!selectedPlaylist && item.id === 'all')
                     ? styles.playlistChipActive
-                    : undefined
+                    : undefined,
+                  item.id === 'add' ? styles.addPlaylistChip : undefined
                 ]}
-                onPress={() =>
-                  item.id === 'all' ? setSelectedPlaylist(null) : setSelectedPlaylist(item.id)
-                }
+                onPress={() => {
+                  if (item.id === 'add') {
+                    setShowPlaylistModal(true);
+                  } else if (item.id === 'all') {
+                    setSelectedPlaylist(null);
+                  } else {
+                    setSelectedPlaylist(item.id);
+                  }
+                }}
               >
+                {item.id === 'add' && (
+                  <Ionicons
+                    name="add"
+                    size={16}
+                    color="#fff"
+                    style={isRTL ? { marginLeft: 6 } : { marginRight: 6 }}
+                  />
+                )}
                 <Text
                   style={[
                     styles.playlistChipText,
                     selectedPlaylist === item.id || (!selectedPlaylist && item.id === 'all')
                       ? styles.playlistChipTextActive
-                      : undefined
+                      : undefined,
+                    item.id === 'add' ? styles.addPlaylistChipText : undefined
                   ]}
                 >
                   {item.name}
@@ -187,10 +218,15 @@ export const SavedDatesScreen = () => {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.playlistList}
+            contentContainerStyle={[
+              styles.playlistList,
+              isRTL ? { flexDirection: 'row-reverse' } : undefined
+            ]}
           />
 
-          <Text style={styles.sectionTitle}>דייטים ב{activePlaylistLabel === 'הכל' ? '' : '־'}{activePlaylistLabel}</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>
+            דייטים ב{activePlaylistLabel === 'הכל' ? '' : '־'}{activePlaylistLabel}
+          </Text>
 
           <FlatList
             data={savedDates}
@@ -200,7 +236,12 @@ export const SavedDatesScreen = () => {
             showsVerticalScrollIndicator={false}
           />
 
-          <Modal visible={showPlaylistModal} animationType="slide" transparent>
+          <Modal
+            visible={showPlaylistModal}
+            animationType="slide"
+            transparent
+            onRequestClose={() => setShowPlaylistModal(false)}
+          >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>רשימה חדשה</Text>
@@ -232,7 +273,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
+    writingDirection: 'rtl'
   },
 
   /* ===== Header ===== */
@@ -241,13 +283,15 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     marginBottom: 18,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'flex-end'
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#fff',
-    letterSpacing: 0.4
+    letterSpacing: 0.4,
+    textAlign: 'right',
+    writingDirection: 'rtl'
   },
 
   /* ===== Loader ===== */
@@ -270,20 +314,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text
+    color: colors.text,
+    textAlign: 'right',
+    writingDirection: 'rtl'
   },
-  addListButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12
+  sectionTitleSpacing: {
+    marginTop: 8
   },
-  addListButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    marginLeft: 6
+  backToAll: {
+    alignItems: 'center'
+  },
+  backToAllText: {
+    color: colors.primary,
+    fontWeight: '600'
   },
   playlistList: {
     gap: 8,
@@ -310,6 +353,15 @@ const styles = StyleSheet.create({
   playlistChipTextActive: {
     color: colors.primary
   },
+  addPlaylistChip: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    flexDirection: 'row'
+  },
+  addPlaylistChipText: {
+    color: '#fff',
+    fontWeight: '700'
+  },
 
   /* ===== Empty State ===== */
   emptyState: {
@@ -322,7 +374,8 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text
+    color: colors.text,
+    textAlign: 'center'
   },
   emptySubtitle: {
     fontSize: 14,
@@ -352,17 +405,20 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: colors.text,
-    flexShrink: 1
+    flexShrink: 1,
+    textAlign: 'right'
   },
   cardMeta: {
     fontSize: 13,
     color: colors.textLight,
-    marginBottom: 4
+    marginBottom: 4,
+    textAlign: 'right'
   },
   cardDate: {
     fontSize: 12,
     color: colors.textLight,
-    marginBottom: 8
+    marginBottom: 8,
+    textAlign: 'right'
   },
   cardDescription: {
     fontSize: 14,
@@ -404,7 +460,9 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text
+    color: colors.text,
+    textAlign: 'right',
+    writingDirection: 'rtl'
   },
   textInput: {
     borderWidth: 1,
@@ -412,7 +470,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.text
+    color: colors.text,
+    textAlign: 'right'
   },
   modalActions: {
     flexDirection: 'row',
