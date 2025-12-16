@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+
 import { colors } from '../theme/styles';
 import { SavedDatesService } from '../services/savedDates';
 import { SavedDateEntry } from '../utils/places';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 
 export const SavedDatesScreen = () => {
   const navigation = useNavigation<any>();
@@ -35,38 +38,61 @@ export const SavedDatesScreen = () => {
     <View style={styles.emptyState}>
       <Ionicons name="bookmark-outline" size={48} color={colors.primary} />
       <Text style={styles.emptyTitle}>עוד לא שמרת דייטים</Text>
-      <Text style={styles.emptySubtitle}>פתח מקום אהוב ושמור אותו כדי למצוא אותו כאן במהירות.</Text>
+      <Text style={styles.emptySubtitle}>
+        פתח מקום אהוב ושמור אותו כדי למצוא אותו כאן במהירות.
+      </Text>
     </View>
   );
 
   const renderItem = ({ item }: { item: SavedDateEntry }) => {
     const savedDate = item.savedAt ? new Date(item.savedAt) : null;
-    const savedLabel = savedDate ? savedDate.toLocaleDateString('he-IL') : '';
+    const savedLabel = savedDate
+      ? savedDate.toLocaleDateString('he-IL')
+      : '';
 
     return (
       <TouchableOpacity
+        activeOpacity={0.85}
         style={styles.card}
-        onPress={() => navigation.navigate('PlaceDetails', { place: item.place })}
+        onPress={() =>
+          navigation.navigate('PlaceDetails', { place: item.place })
+        }
       >
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{item.place.name}</Text>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {item.place.name}
+          </Text>
+
           <View style={styles.savedBadge}>
-            <Ionicons name="bookmark" size={16} color="#fff" />
+            <Ionicons name="bookmark" size={14} color={colors.primary} />
             <Text style={styles.savedBadgeText}>נשמר</Text>
           </View>
         </View>
+
         <Text style={styles.cardMeta}>{item.place.category}</Text>
-        {savedLabel ? <Text style={styles.cardDate}>נשמר ב- {savedLabel}</Text> : null}
-        <Text style={styles.cardDescription} numberOfLines={2}>
+
+        {savedLabel && (
+          <Text style={styles.cardDate}>נשמר ב־ {savedLabel}</Text>
+        )}
+
+        {/* <Text style={styles.cardDescription} numberOfLines={2}>
           {item.place.description}
-        </Text>
+        </Text> */}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.screenTitle}>הדייטים השמורים שלי</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <LinearGradient
+        colors={[colors.primary, colors.secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>הדייטים השמורים שלי</Text>
+      </LinearGradient>
 
       {loading ? (
         <View style={styles.loaderContainer}>
@@ -80,17 +106,47 @@ export const SavedDatesScreen = () => {
           renderItem={renderItem}
           keyExtractor={(item) => item.placeId}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 20 },
-  screenTitle: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginBottom: 12 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingBottom: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: 16
+  },
+
+  /* ===== Header ===== */
+  header: {
+    borderRadius: 18,
+    paddingVertical: 20,
+    marginBottom: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.4
+  },
+
+  /* ===== Loader ===== */
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+
+  listContent: {
+    paddingBottom: 80
+  },
+
+  /* ===== Empty State ===== */
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -98,38 +154,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10
   },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
-  emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center' },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: 'center'
+  },
+
+  /* ===== Card ===== */
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 6
   },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
-  cardMeta: { fontSize: 14, color: '#777', marginBottom: 4 },
-  cardDate: { fontSize: 12, color: '#999', marginBottom: 8 },
-  cardDescription: { fontSize: 14, color: '#555' },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    flexShrink: 1
+  },
+  cardMeta: {
+    fontSize: 13,
+    color: colors.textLight,
+    marginBottom: 4
+  },
+  cardDate: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginBottom: 8
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20
+  },
+
+  /* ===== Saved Badge ===== */
   savedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8
+    borderRadius: 999
   },
-  savedBadgeText: { color: '#fff', marginLeft: 4, fontWeight: '600', fontSize: 12 }
+  savedBadgeText: {
+    color: colors.primary,
+    marginLeft: 4,
+    fontWeight: '600',
+    fontSize: 12
+  }
 });
