@@ -11,4 +11,11 @@ export interface SavedDateEntry {
   placeId: string;
   place: AiRecommendation;
   savedAt?: string;
+  playlistId?: string;
+}
+
+export interface SavedPlaylist {
+  id: string;
+  name: string;
+  createdAt: string;
 }
