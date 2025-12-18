@@ -64,10 +64,3 @@ This section must contain a manual verification checklist for the user to confir
 * **Dependencies:** When suggesting a new package (npm/yarn), verify it is compatible with React Native (for mobile) or Node.js (for backend).
 
 ---
-
-## 📝 Current Phase Context (For Jules)
-We are currently in **Phase 1: Core Infrastructure**.
-Focus on:
-1.  Setting up the Express Server with TypeScript.
-2.  Connecting to MongoDB.
-3.  Implementing the Basic OpenAI Endpoint.
