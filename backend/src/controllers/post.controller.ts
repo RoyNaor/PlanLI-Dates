@@ -6,9 +6,22 @@ import Comment, { MAX_COMMENT_DEPTH } from '../models/comment.model';
 import { CreateCommentDTO, CreatePostDTO } from '../dtos/post.dto';
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
-  const authReq = req as AuthRequest;
+  const authReq = req as AuthRequest & { file?: Express.Multer.File };
   const user = authReq.user;
-  const { content, imageUrl, location } = req.body as CreatePostDTO;
+  const { content, imageUrl, location } = authReq.body as CreatePostDTO & { location?: string };
+
+  let parsedLocation: CreatePostDTO['location'];
+
+  if (typeof location === 'string') {
+    try {
+      parsedLocation = JSON.parse(location);
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid location format. Expected JSON.' });
+      return;
+    }
+  } else {
+    parsedLocation = location;
+  }
 
   if (!user) {
     res.status(401).json({ message: 'Unauthorized: No user found on request' });
@@ -24,8 +37,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     const post = new Post({
       authorId: user.uid,
       content,
-      imageUrl,
-      location
+      imageUrl: authReq.file?.path || imageUrl,
+      location: parsedLocation
     });
 
     await post.save();
