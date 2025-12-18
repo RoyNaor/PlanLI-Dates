@@ -6,6 +6,7 @@ import { authenticate, AuthRequest } from './middleware/auth.middleware';
 import userRoutes from './routes/user.routes';
 import dateRoutes from './routes/date.routes';
 import reviewRoutes from './routes/review.routes';
+import postRoutes from './routes/post.routes';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/dates', dateRoutes);
 app.use('/api', reviewRoutes);
+app.use('/api/posts', postRoutes);
 
 // Basic Route
 app.get('/', (req: Request, res: Response) => {
