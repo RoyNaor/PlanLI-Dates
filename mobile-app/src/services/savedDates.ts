@@ -129,6 +129,33 @@ export const SavedDatesService = {
     await writeSavedDates({ ...state, entries: filtered });
     return filtered;
   },
+
+  async updateDatePlaylist(placeId: string, playlistId: string): Promise<SavedDateEntry[]> {
+    const state = await readSavedDatesState();
+    const playlistExists = state.playlists.some((playlist) => playlist.id === playlistId);
+
+    const resolvedPlaylistId = playlistExists
+      ? playlistId
+      : state.playlists[0]?.id || DEFAULT_PLAYLIST.id;
+
+    const ensuredPlaylists = playlistExists
+      ? state.playlists
+      : state.playlists.length > 0
+        ? state.playlists
+        : [DEFAULT_PLAYLIST];
+
+    const updatedEntries = state.entries.map((entry) =>
+      entry.placeId === placeId ? { ...entry, playlistId: resolvedPlaylistId } : entry
+    );
+
+    const updatedState: SavedDatesState = {
+      entries: updatedEntries,
+      playlists: ensuredPlaylists
+    };
+
+    await writeSavedDates(updatedState);
+    return updatedEntries;
+  },
 };
 
 export const resolvePlaceId = (place: AiRecommendation): string | undefined => getPlaceId(place);
