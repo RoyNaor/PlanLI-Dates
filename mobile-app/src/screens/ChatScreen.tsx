@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // שים לב לשינוי הזה
+import { LinearGradient } from 'expo-linear-gradient'; // הוספת הגרדיאנט
 import { Ionicons } from '@expo/vector-icons';
 import { colors, globalStyles } from '../theme/styles';
 
@@ -21,7 +23,7 @@ export const ChatScreen = () => {
       author: 'Maya',
       timeAgo: 'לפני שעה',
       content: 'טיול בשקיעה בטיילת וצילום זוגי קטן 📸',
-      imageUrl: 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2',
+      imageUrl: '',
       likes: 24,
       comments: 6,
       location: 'תל אביב - הטיילת'
@@ -51,7 +53,6 @@ export const ChatScreen = () => {
   [posts]);
 
   const handleAddPost = () => {
-    // Placeholder action until backend wiring is ready
     console.log('Navigate to Add Post form');
   };
 
@@ -88,11 +89,15 @@ export const ChatScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>קהילה והשראה</Text>
-        <Text style={styles.subtitle}>פיד השראות לדייטים בסגנון אינסטגרם</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient
+        colors={[colors.primary, colors.secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}> PlanLI Dates </Text>
+      </LinearGradient>
 
       <FlatList
         data={posts}
@@ -111,12 +116,43 @@ export const ChatScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: colors.card },
-  title: { fontSize: 22, fontWeight: 'bold', color: colors.text },
-  subtitle: { fontSize: 14, color: colors.textLight, marginTop: 4 },
-  listContent: { padding: 16, paddingBottom: 120 },
-  card: { ...globalStyles.card },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: 16 
+  },
+  
+  header: {
+    borderRadius: 18,
+    paddingVertical: 20,
+    marginBottom: 12,
+    marginTop: 10, 
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center'
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)', 
+    marginTop: 4,
+    textAlign: 'center',
+    fontWeight: '500'
+  },
+
+  /* List & Card Styles */
+  listContent: {
+    paddingBottom: 120,
+    paddingTop: 4 
+  },
+  card: {
+    ...globalStyles.card,
+    marginBottom: 16, 
+  },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: {
     width: 42,
@@ -136,6 +172,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', marginTop: 12 },
   actionItem: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
   actionLabel: { marginLeft: 6, color: colors.text },
+  
+  /* FAB Styles */
   fab: {
     position: 'absolute',
     right: 20,

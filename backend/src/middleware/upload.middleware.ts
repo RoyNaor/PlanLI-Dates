@@ -5,9 +5,9 @@ import { cloudinary } from '../config/cloudinary';
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'date-ideas-app-v1',
-    allowed_formats: ['jpg', 'png', 'jpeg']
-  }
+      folder: 'date-ideas-app-v1',
+      allowed_formats: ['jpg', 'png', 'jpeg'],
+    } as { folder: string; allowed_formats: string[] }, 
 });
 
 export const upload = multer({ storage });
