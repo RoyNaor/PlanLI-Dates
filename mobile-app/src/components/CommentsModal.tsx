@@ -157,19 +157,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     }
   };
 
-  const renderLocation = () => {
-    if (!post?.location) return null;
-    let locationName = '';
-    
-    if (typeof post.location === 'object' && (post.location as any).name) {
-      locationName = (post.location as any).name;
-    } else if (typeof post.location === 'string') {
-      locationName = post.location;
-    }
-
-    return locationName ? <Text style={styles.postLocation}>📍 {locationName}</Text> : null;
-  };
-
   const renderComment = (comment: Comment, depth = 1) => {
     const indent = depth > 1 ? (depth - 1) * 12 : 0;
     const canReply = depth < MAX_DEPTH;
@@ -209,8 +196,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     );
   };
 
-  const postContent = post ? ((post as any).content || post.text) : '';
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -227,14 +212,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
         </View>
 
         <ScrollView style={styles.scrollContainer} contentContainerStyle={{ paddingBottom: 20 }}>
-          {post && (
-            <View style={styles.postPreview}>
-              <Text style={styles.postPreviewText}>{postContent}</Text>
-              {renderLocation()}
-              <View style={styles.divider} />
-            </View>
-          )}
-
           <View style={styles.commentsList}>
             {sortedComments.length === 0 ? (
               <Text style={styles.emptyText}>אין תגובות עדיין. היה הראשון להגיב!</Text>
@@ -306,26 +283,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-  },
-  postPreview: {
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  postPreviewText: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  postLocation: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginTop: 8,
   },
   commentsList: {
     padding: 16,
