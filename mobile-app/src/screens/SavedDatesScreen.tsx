@@ -73,7 +73,6 @@ export const SavedDatesScreen = () => {
     );
   };
 
-  // --- לוגיקת המודל (כמו שביקשת) ---
   const closeEditModal = () => {
     setEditModalVisible(false);
     setEditingDate(null);
