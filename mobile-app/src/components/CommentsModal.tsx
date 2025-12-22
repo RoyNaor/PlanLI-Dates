@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -10,11 +10,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, globalStyles } from '../theme/styles';
+import { formatDistanceToNow } from 'date-fns';
+import { he } from 'date-fns/locale';
+import { colors } from '../theme/styles';
 import { Comment, Post, PostsService } from '../services/posts.service';
+import { auth } from '../config/firebase';
 
 interface CommentsModalProps {
   visible: boolean;
@@ -29,8 +32,16 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
   const [commentText, setCommentText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [localComments, setLocalComments] = useState<Comment[]>(post?.comments || []);
 
-  const sortedComments = useMemo(() => post?.comments || [], [post?.comments]);
+  const sortedComments = useMemo(
+    () =>
+      [...localComments].sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }),
+    [localComments]
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -39,35 +50,111 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     }
   }, [visible]);
 
-  const handleSubmit = async () => {
-    if (!post || !commentText.trim()) return;
-    if (submitting) return;
+  useEffect(() => {
+    setLocalComments(post?.comments || []);
+  }, [post]);
+
+  const currentUserAuthor = () => {
+    const user = auth.currentUser;
+
+    if (!user) return undefined;
+
+    return {
+      _id: user.uid,
+      displayName: user.displayName || 'אורח',
+      photoUrl: user.photoURL || undefined,
+    };
+  };
+
+  const formatRelativeTime = (timestamp?: string) => {
+    if (!timestamp) return '';
 
     try {
-      setSubmitting(true);
-      await PostsService.addComment(post._id, commentText.trim(), replyingTo?._id);
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: he });
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const insertComment = (comments: Comment[], newComment: Comment, parentId?: string | null): Comment[] => {
+    if (!parentId) {
+      return [newComment, ...comments];
+    }
+
+    return comments.map((comment) => {
+      if (comment._id === parentId) {
+        const replies = comment.replies || [];
+        return { ...comment, replies: [...replies, newComment] };
+      }
+
+      return {
+        ...comment,
+        replies: insertComment(comment.replies || [], newComment, parentId),
+      };
+    });
+  };
+
+  const replaceComment = (comments: Comment[], tempId: string, savedComment: Comment): Comment[] =>
+    comments.map((comment) => {
+      if (comment._id === tempId) {
+        return savedComment;
+      }
+
+      return {
+        ...comment,
+        replies: replaceComment(comment.replies || [], tempId, savedComment),
+      };
+    });
+
+  const removeCommentById = (comments: Comment[], targetId: string): Comment[] =>
+    comments
+      .filter((comment) => comment._id !== targetId)
+      .map((comment) => ({
+        ...comment,
+        replies: removeCommentById(comment.replies || [], targetId),
+      }));
+
+  const handleSubmit = async () => {
+    if (!post || !commentText.trim() || submitting) return;
+
+    const author = currentUserAuthor();
+    const tempId = `temp-comment-${Date.now()}`;
+    const parentId = replyingTo?._id;
+    const text = commentText.trim();
+
+    const optimisticComment: Comment = {
+      _id: tempId,
+      text,
+      authorId: author,
+      createdAt: new Date().toISOString(),
+      replies: [],
+      parentId,
+    };
+
+    setSubmitting(true);
+    setLocalComments((comments) => insertComment(comments, optimisticComment, parentId));
+
+    try {
+      const saved = await PostsService.addComment(post._id, text, parentId);
+      const hydratedComment: Comment = {
+        ...saved,
+        text: saved.text || text,
+        authorId: saved.authorId || author,
+        replies: saved.replies || [],
+        createdAt: saved.createdAt || new Date().toISOString(),
+      };
+
+      setLocalComments((comments) => replaceComment(comments, tempId, hydratedComment));
       setCommentText('');
       setReplyingTo(null);
       Keyboard.dismiss();
       await onRefresh();
     } catch (error) {
       console.error('Failed to add comment', error);
+      setLocalComments((comments) => removeCommentById(comments, tempId));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const renderLocation = () => {
-    if (!post?.location) return null;
-    let locationName = '';
-    
-    if (typeof post.location === 'object' && (post.location as any).name) {
-      locationName = (post.location as any).name;
-    } else if (typeof post.location === 'string') {
-      locationName = post.location;
-    }
-
-    return locationName ? <Text style={styles.postLocation}>📍 {locationName}</Text> : null;
   };
 
   const renderComment = (comment: Comment, depth = 1) => {
@@ -77,29 +164,28 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     const authorName = comment.authorId?.displayName || 'אורח';
     const initial = authorName.slice(0, 1).toUpperCase();
 
-    // תיקון: שימוש ב-content או text (גיבוי)
     const contentText = (comment as any).content || comment.text;
 
     return (
-      <View key={comment._id} style={[styles.commentContainer, { marginRight: indent }]}> 
+      <View key={comment._id} style={[styles.commentContainer, { marginRight: indent }]}>
         <View style={styles.commentHeader}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <View style={styles.commentMeta}>
             <Text style={styles.commentAuthor}>{authorName}</Text>
-            {comment.createdAt && (
-              <Text style={styles.commentTime}>{new Date(comment.createdAt).toLocaleString('he-IL')}</Text>
-            )}
+            {comment.createdAt && <Text style={styles.commentTime}>{formatRelativeTime(comment.createdAt)}</Text>}
           </View>
         </View>
-        
-        {/* התיקון כאן: הצגת התוכן הנכון */}
+
         <Text style={styles.commentText}>{contentText}</Text>
         
         <View style={styles.commentActions}>
           {canReply && (
-            <TouchableOpacity onPress={() => setReplyingTo(comment)} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <TouchableOpacity
+              onPress={() => setReplyingTo(comment)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Text style={styles.replyButton}>השב</Text>
             </TouchableOpacity>
           )}
@@ -110,15 +196,11 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     );
   };
 
-  // תיקון: שימוש ב-content או text עבור הפוסט הראשי
-  const postContent = post ? ((post as any).content || post.text) : '';
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // תיקון: הרמה נוספת של המקלדת באייפון
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
         style={styles.container}
       >
         <View style={styles.headerRow}>
@@ -130,58 +212,48 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
         </View>
 
         <ScrollView style={styles.scrollContainer} contentContainerStyle={{ paddingBottom: 20 }}>
-            {post && (
-                <View style={styles.postPreview}>
-                    {/* התיקון כאן: הצגת התוכן הנכון */}
-                    <Text style={styles.postPreviewText}>{postContent}</Text>
-                    {renderLocation()}
-                    <View style={styles.divider} />
-                </View>
+          <View style={styles.commentsList}>
+            {sortedComments.length === 0 ? (
+              <Text style={styles.emptyText}>אין תגובות עדיין. היה הראשון להגיב!</Text>
+            ) : (
+              sortedComments.map((comment) => renderComment(comment))
             )}
-
-            <View style={styles.commentsList}>
-                {sortedComments.length === 0 ? (
-                    <Text style={styles.emptyText}>אין תגובות עדיין. היה הראשון להגיב!</Text>
-                ) : (
-                    sortedComments.map((comment) => renderComment(comment))
-                )}
-            </View>
+          </View>
         </ScrollView>
 
-        {/* אזור הקלדה */}
         <View style={styles.inputArea}>
-            {replyingTo && (
-                <View style={styles.replyingToBanner}>
-                <Text style={styles.replyingToText}>
-                    מגיב ל: {replyingTo.authorId?.displayName || 'אורח'}
-                </Text>
-                <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                    <Ionicons name="close-circle" size={20} color={colors.textLight} />
-                </TouchableOpacity>
-                </View>
-            )}
-
-            <View style={styles.inputRow}>
-                <TextInput
-                    style={styles.input}
-                    placeholder={replyingTo ? "כתוב תגובה..." : "הוסף תגובה לפוסט..."}
-                    placeholderTextColor={colors.textLight}
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    multiline
-                />
-                <TouchableOpacity
-                    style={[styles.sendButton, (!commentText.trim() || submitting) && styles.disabled]}
-                    onPress={handleSubmit}
-                    disabled={!commentText.trim() || submitting}
-                >
-                    {submitting ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                        <Ionicons name="send" size={20} color="#fff" />
-                    )}
-                </TouchableOpacity>
+          {replyingTo && (
+            <View style={styles.replyingToBanner}>
+              <Text style={styles.replyingToText}>
+                מגיב ל: {replyingTo.authorId?.displayName || 'אורח'}
+              </Text>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <Ionicons name="close-circle" size={20} color={colors.textLight} />
+              </TouchableOpacity>
             </View>
+          )}
+
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder={replyingTo ? 'כתוב תגובה...' : 'הוסף תגובה לפוסט...'}
+              placeholderTextColor={colors.textLight}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!commentText.trim() || submitting) && styles.disabled]}
+              onPress={handleSubmit}
+              disabled={!commentText.trim() || submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -211,26 +283,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-  },
-  postPreview: {
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  postPreviewText: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  postLocation: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginTop: 8,
   },
   commentsList: {
     padding: 16,
@@ -293,11 +345,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   
-  // אזור הקלדה
   inputArea: {
     padding: 16,
-    // תיקון: הרמת האזור כלפי מעלה
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20, 
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff',

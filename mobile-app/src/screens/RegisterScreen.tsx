@@ -44,7 +44,7 @@ export const RegisterScreen = ({ navigation }: any) => {
       await ApiService.post('/users/register', { name });
 
       Alert.alert(t('register.successTitle'), t('register.successMsg'));
-      navigation.replace('Home');
+      navigation.replace('ChatScreen');
     } catch (error: any) {
       console.error(error);
       Alert.alert(t('register.errorTitle'), error.message);
