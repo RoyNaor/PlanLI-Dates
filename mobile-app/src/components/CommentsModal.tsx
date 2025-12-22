@@ -29,9 +29,11 @@ interface CommentsModalProps {
 const MAX_DEPTH = 3;
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onClose, onRefresh }) => {
-  const [commentText, setCommentText] = useState('');
-  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [submittingTarget, setSubmittingTarget] = useState<string | null>(null);
   const [localComments, setLocalComments] = useState<Comment[]>(post?.comments || []);
 
   const sortedComments = useMemo(
@@ -45,8 +47,11 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
 
   useEffect(() => {
     if (!visible) {
-      setCommentText('');
-      setReplyingTo(null);
+      setNewCommentText('');
+      setReplyInputs({});
+      setActiveReplyId(null);
+      setExpandedComments({});
+      setSubmittingTarget(null);
     }
   }, [visible]);
 
@@ -114,84 +119,140 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
         replies: removeCommentById(comment.replies || [], targetId),
       }));
 
-  const handleSubmit = async () => {
-    if (!post || !commentText.trim() || submitting) return;
+  const handleSubmit = async (text: string, parentId?: string | null) => {
+    if (!post || !text.trim() || submittingTarget) return;
 
     const author = currentUserAuthor();
     const tempId = `temp-comment-${Date.now()}`;
-    const parentId = replyingTo?._id;
-    const text = commentText.trim();
+    const trimmedText = text.trim();
+    const targetKey = parentId || 'root';
 
     const optimisticComment: Comment = {
       _id: tempId,
-      text,
+      text: trimmedText,
       authorId: author,
       createdAt: new Date().toISOString(),
       replies: [],
       parentId,
     };
 
-    setSubmitting(true);
+    setSubmittingTarget(targetKey);
     setLocalComments((comments) => insertComment(comments, optimisticComment, parentId));
 
     try {
-      const saved = await PostsService.addComment(post._id, text, parentId);
+      const saved = await PostsService.addComment(post._id, trimmedText, parentId || undefined);
       const hydratedComment: Comment = {
         ...saved,
-        text: saved.text || text,
+        text: saved.text || trimmedText,
         authorId: saved.authorId || author,
         replies: saved.replies || [],
         createdAt: saved.createdAt || new Date().toISOString(),
       };
 
       setLocalComments((comments) => replaceComment(comments, tempId, hydratedComment));
-      setCommentText('');
-      setReplyingTo(null);
+      if (parentId) {
+        setReplyInputs((inputs) => ({ ...inputs, [parentId]: '' }));
+        setActiveReplyId((current) => (current === parentId ? null : current));
+      } else {
+        setNewCommentText('');
+      }
       Keyboard.dismiss();
       await onRefresh();
     } catch (error) {
       console.error('Failed to add comment', error);
       setLocalComments((comments) => removeCommentById(comments, tempId));
     } finally {
-      setSubmitting(false);
+      setSubmittingTarget(null);
     }
   };
 
+  const toggleReplies = (commentId: string) => {
+    setExpandedComments((prev) => ({ ...prev, [commentId]: !prev[commentId] }));
+  };
+
   const renderComment = (comment: Comment, depth = 1) => {
-    const indent = depth > 1 ? (depth - 1) * 12 : 0;
     const canReply = depth < MAX_DEPTH;
-    
     const authorName = comment.authorId?.displayName || 'אורח';
     const initial = authorName.slice(0, 1).toUpperCase();
-
     const contentText = (comment as any).content || comment.text;
+    const replyCount = comment.replies?.length || 0;
+    const repliesExpanded = expandedComments[comment._id];
+    const isReplyingHere = activeReplyId === comment._id;
 
     return (
-      <View key={comment._id} style={[styles.commentContainer, { marginRight: indent }]}>
-        <View style={styles.commentHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
+      <View
+        key={comment._id}
+        style={[styles.commentContainer, depth > 1 && styles.replyItem]}
+      >
+        {depth > 1 && <View style={styles.replyThreadLine} />}
+        <View style={{ flex: 1 }}>
+          <View style={styles.commentHeader}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </View>
+            <View style={styles.commentMeta}>
+              <Text style={styles.commentAuthor}>{authorName}</Text>
+              {comment.createdAt && <Text style={styles.commentTime}>{formatRelativeTime(comment.createdAt)}</Text>}
+            </View>
           </View>
-          <View style={styles.commentMeta}>
-            <Text style={styles.commentAuthor}>{authorName}</Text>
-            {comment.createdAt && <Text style={styles.commentTime}>{formatRelativeTime(comment.createdAt)}</Text>}
-          </View>
-        </View>
 
-        <Text style={styles.commentText}>{contentText}</Text>
-        
-        <View style={styles.commentActions}>
-          {canReply && (
-            <TouchableOpacity
-              onPress={() => setReplyingTo(comment)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.replyButton}>השב</Text>
-            </TouchableOpacity>
+          <Text style={styles.commentText}>{contentText}</Text>
+
+          <View style={styles.commentActions}>
+            {canReply && (
+              <TouchableOpacity
+                onPress={() =>
+                  setActiveReplyId((current) => (current === comment._id ? null : comment._id))
+                }
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.actionRow}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#666" />
+                <Text style={styles.replyButton}>השב</Text>
+              </TouchableOpacity>
+            )}
+
+            {replyCount > 0 && (
+              <TouchableOpacity style={styles.actionRow} onPress={() => toggleReplies(comment._id)}>
+                <Ionicons name={repliesExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+                <Text style={styles.replyToggleText}>
+                  {repliesExpanded ? 'הסתר תגובות' : `צפה ב-${replyCount} תגובות`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {isReplyingHere && (
+            <View style={styles.replyBox}>
+              <TextInput
+                style={styles.replyInput}
+                placeholder="כתוב תגובה"
+                placeholderTextColor={colors.textLight}
+                value={replyInputs[comment._id] || ''}
+                onChangeText={(text) =>
+                  setReplyInputs((prev) => ({
+                    ...prev,
+                    [comment._id]: text,
+                  }))
+                }
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.replySend, (!replyInputs[comment._id]?.trim() || submittingTarget !== null) && styles.disabled]}
+                onPress={() => handleSubmit(replyInputs[comment._id] || '', comment._id)}
+                disabled={!replyInputs[comment._id]?.trim() || submittingTarget !== null}
+              >
+                {submittingTarget === comment._id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
           )}
+
+          {repliesExpanded && comment.replies?.map((child) => renderComment(child, depth + 1))}
         </View>
-        
-        {comment.replies?.map((child) => renderComment(child, depth + 1))}
       </View>
     );
   };
@@ -222,32 +283,21 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
         </ScrollView>
 
         <View style={styles.inputArea}>
-          {replyingTo && (
-            <View style={styles.replyingToBanner}>
-              <Text style={styles.replyingToText}>
-                מגיב ל: {replyingTo.authorId?.displayName || 'אורח'}
-              </Text>
-              <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                <Ionicons name="close-circle" size={20} color={colors.textLight} />
-              </TouchableOpacity>
-            </View>
-          )}
-
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder={replyingTo ? 'כתוב תגובה...' : 'הוסף תגובה לפוסט...'}
+              placeholder="הוסף תגובה לפוסט..."
               placeholderTextColor={colors.textLight}
-              value={commentText}
-              onChangeText={setCommentText}
+              value={newCommentText}
+              onChangeText={setNewCommentText}
               multiline
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!commentText.trim() || submitting) && styles.disabled]}
-              onPress={handleSubmit}
-              disabled={!commentText.trim() || submitting}
+              style={[styles.sendButton, (!newCommentText.trim() || submittingTarget !== null) && styles.disabled]}
+              onPress={() => handleSubmit(newCommentText)}
+              disabled={!newCommentText.trim() || submittingTarget !== null}
             >
-              {submitting ? (
+              {submittingTarget === 'root' ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Ionicons name="send" size={20} color="#fff" />
@@ -288,12 +338,27 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   commentContainer: {
+    flexDirection: 'row',
     marginBottom: 16,
     padding: 12,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  replyItem: {
+    marginLeft: 12,
+  },
+  replyThreadLine: {
+    width: 2,
+    backgroundColor: '#f0c6d8',
+    borderRadius: 2,
+    marginRight: 8,
   },
   commentHeader: {
     flexDirection: 'row',
@@ -304,12 +369,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.secondary,
+    backgroundColor: '#fbe9f0',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#f0c6d8',
   },
   avatarText: {
-    color: '#fff',
+    color: '#666',
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -339,32 +406,53 @@ const styles = StyleSheet.create({
     marginTop: 8,
     justifyContent: 'flex-start',
   },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   replyButton: {
     color: colors.primary,
     fontWeight: '600',
     fontSize: 13,
+    marginLeft: 6,
   },
-  
+  replyToggleText: {
+    color: '#666',
+    fontSize: 13,
+    marginLeft: 6,
+  },
+  replyBox: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  replyInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  replySend: {
+    marginLeft: 8,
+    backgroundColor: colors.primary,
+    padding: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   inputArea: {
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff',
-  },
-  replyingToBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0f0f0',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  replyingToText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
   },
   inputRow: {
     flexDirection: 'row',

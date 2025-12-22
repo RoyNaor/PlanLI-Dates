@@ -38,7 +38,7 @@ export const RegisterScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       // 1. יצירת משתמש ב-Firebase
-      await AuthService.signUp(email, password);
+      await AuthService.signUp(email, password, name);
 
       // 2. יצירת משתמש ב-MongoDB
       await ApiService.post('/users/register', { name });

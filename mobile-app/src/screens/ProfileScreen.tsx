@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 export const ProfileScreen = () => {
   const { t, i18n } = useTranslation();
   const user = auth.currentUser;
+  const displayName = user?.displayName || 'אורח';
+  const initial = displayName.charAt(0).toUpperCase();
 
   const handleLogout = async () => {
     try {
@@ -26,9 +28,9 @@ export const ProfileScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>{initial}</Text>
         </View>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Text style={styles.email}>{displayName}</Text>
       </View>
 
       <View style={styles.section}>
