@@ -12,21 +12,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/styles';
-import { PostsService } from '../services/posts.service';
-import { LocationSearch, Location } from '../components/LocationSearch'; // ייבוא הקומפוננטה והטיפוס
+import { Post, PostsService } from '../services/posts.service';
+import { LocationSearch, Location } from '../components/LocationSearch';
+import { auth } from '../config/firebase';
 
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
-  onPostCreated: () => void;
+  onPostCreated: (post: Post, tempId?: string) => void;
+  onPostCreationFailed?: (tempId: string) => void;
 }
 
-export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostModalProps) => {
+export const CreatePostModal = ({ visible, onClose, onPostCreated, onPostCreationFailed }: CreatePostModalProps) => {
   const [text, setText] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [image, setImage] = useState<string | null>(null);
@@ -51,7 +53,20 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
       return;
     }
 
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert('שגיאה', 'יש להתחבר לפני יצירת פוסט');
+      return;
+    }
+    const authorDetails = {
+      _id: currentUser.uid,
+      displayName: currentUser.displayName || 'אורח',
+      photoUrl: currentUser.photoURL || undefined,
+    };
+
     setLoading(true);
+    const tempId = `temp-post-${Date.now()}`;
+
     try {
       const formData = new FormData();
       formData.append('text', text);
@@ -60,7 +75,7 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
         const locationData = {
           name: selectedLocation.address,
           lat: selectedLocation.lat,
-          long: selectedLocation.lng // שים לב שזה long ולא lng עבור הבקאנד שלך
+          long: selectedLocation.lng,
         };
         formData.append('location', JSON.stringify(locationData));
       }
@@ -77,13 +92,31 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
         } as any);
       }
 
-      await PostsService.createPost(formData);
-      
-      handleClose(); // איפוס וסגירה
-      onPostCreated();
+      const optimisticPost: Post = {
+        _id: tempId,
+        text: text.trim(),
+        authorId: authorDetails,
+        createdAt: new Date().toISOString(),
+        imageUrl: image || undefined,
+        location: selectedLocation
+          ? { name: selectedLocation.address, lat: selectedLocation.lat, long: selectedLocation.lng }
+          : undefined,
+        comments: [],
+        likes: [],
+        likesCount: 0,
+      };
+
+      onPostCreated(optimisticPost, tempId);
+
+      const savedPost = await PostsService.createPost(formData);
+
+      onPostCreated({ ...savedPost, authorId: savedPost.authorId || authorDetails }, tempId);
+
+      handleClose();
     } catch (error) {
       console.error('Failed to create post:', error);
       Alert.alert('שגיאה', 'לא ניתן ליצור את הפוסט כרגע');
+      onPostCreationFailed?.(tempId);
     } finally {
       setLoading(false);
     }
@@ -124,18 +157,15 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
                   textAlignVertical="top"
                 />
 
-                {/* --- התיקון כאן: שימוש במבנה של StepLocation --- */}
-                {/* שימוש ב-inline style ל-zIndex בדיוק כמו ב-StepLocation כדי להבטיח שהרשימה תצוף מעל הכל */}
                 <View style={{ zIndex: 2000, marginBottom: 15 }}>
-                    <Text style={styles.sectionLabel}>מיקום (אופציונלי):</Text>
-                    <LocationSearch 
-                      placeholder="חפש מיקום..."
-                      onLocationSelected={setSelectedLocation}
-                      zIndex={2000} 
-                      value={selectedLocation?.address}
-                    />
+                  <Text style={styles.sectionLabel}>מיקום (אופציונלי):</Text>
+                  <LocationSearch
+                    placeholder="חפש מיקום..."
+                    onLocationSelected={setSelectedLocation}
+                    zIndex={2000}
+                    value={selectedLocation?.address}
+                  />
                 </View>
-                {/* ------------------------------------------------ */}
 
                 {image ? (
                   <View style={styles.imagePreviewContainer}>
@@ -215,7 +245,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'right',
   },
-  // הסרתי את styles.locationContainer כי השתמשנו ב-inline style כמו ב-StepLocation
   imageButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,7 +255,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     justifyContent: 'center',
     marginTop: 10,
-    // הורדתי את zIndex מפה כדי שלא יתחרה עם המיקום
   },
   imageButtonText: {
     marginLeft: 8,
@@ -236,7 +264,6 @@ const styles = StyleSheet.create({
   imagePreviewContainer: {
     marginTop: 10,
     position: 'relative',
-    // הורדתי את zIndex מפה כדי שלא יתחרה עם המיקום
   },
   imagePreview: {
     width: '100%',

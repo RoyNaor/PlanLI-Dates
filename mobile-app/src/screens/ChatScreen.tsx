@@ -3,19 +3,53 @@ import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { formatDistanceToNow } from 'date-fns';
+import { he } from 'date-fns/locale';
 import { colors, globalStyles } from '../theme/styles';
 import { CommentsModal } from '../components/CommentsModal';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { Post, PostsService } from '../services/posts.service';
 import { auth } from '../config/firebase';
 
-const formatTimestamp = (timestamp?: string) => {
+const buildCurrentUserAuthor = () => {
+  const user = auth.currentUser;
+
+  if (!user) return undefined;
+
+  return {
+    _id: user.uid,
+    displayName: user.displayName || 'אורח',
+    photoUrl: user.photoURL || undefined,
+  };
+};
+
+const formatRelativeTime = (timestamp?: string) => {
   if (!timestamp) return '';
+
   try {
-    return new Date(timestamp).toLocaleString('he-IL');
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: he });
   } catch (error) {
     return '';
   }
+};
+
+const normalizePost = (post: Post): Post => {
+  let author = post.authorId;
+
+  if (typeof post.authorId === 'string') {
+    const isCurrentUser = auth.currentUser?.uid === post.authorId;
+    author = isCurrentUser
+      ? buildCurrentUserAuthor()
+      : { _id: post.authorId, displayName: 'אורח' };
+  }
+
+  return {
+    ...post,
+    authorId: author,
+    comments: post.comments || [],
+    likes: post.likes || [],
+    likesCount: post.likesCount ?? post.likes?.length ?? 0,
+  };
 };
 
 export const ChatScreen = () => {
@@ -29,7 +63,7 @@ export const ChatScreen = () => {
     try {
       setLoading(true);
       const data = await PostsService.getAllPosts();
-      setPosts(data);
+      setPosts(data.map(normalizePost));
     } catch (error) {
       console.error('Failed to load posts', error);
     } finally {
@@ -51,10 +85,13 @@ export const ChatScreen = () => {
   }, [posts, commentsModalPost]);
 
   const initials = useMemo(
-    () => Object.fromEntries(posts.map((post) => {
-        const name = post.authorId?.displayName || 'אורח';
-        return [name, name.slice(0, 1).toUpperCase()];
-    })),
+    () =>
+      Object.fromEntries(
+        posts.map((post) => {
+          const name = post.authorId?.displayName || 'אורח';
+          return [name, name.slice(0, 1).toUpperCase()];
+        })
+      ),
     [posts]
   );
 
@@ -72,28 +109,53 @@ export const ChatScreen = () => {
     if (!currentUserId) return;
 
     const isLiked = post.likes?.includes(currentUserId);
-    
-    setPosts(currentPosts => currentPosts.map(p => {
+    const author = post.authorId || buildCurrentUserAuthor();
+
+    setPosts((currentPosts) =>
+      currentPosts.map((p) => {
         if (p._id === post._id) {
-            const newLikes = isLiked 
-                ? p.likes?.filter(id => id !== currentUserId)
-                : [...(p.likes || []), currentUserId];
-            
-            return {
-                ...p,
-                likes: newLikes,
-                likesCount: newLikes?.length || 0
-            };
+          const newLikes = isLiked
+            ? p.likes?.filter((id) => id !== currentUserId)
+            : [...(p.likes || []), currentUserId];
+
+          return {
+            ...p,
+            authorId: author,
+            likes: newLikes,
+            likesCount: newLikes?.length || 0,
+          };
         }
         return p;
-    }));
+      })
+    );
 
     try {
-        await PostsService.togglePostLike(post._id); 
+      await PostsService.togglePostLike(post._id);
     } catch (error) {
-        console.error('Failed to like post', error);
-        fetchPosts(); 
+      console.error('Failed to like post', error);
+      fetchPosts();
     }
+  };
+
+  const handlePostCreated = (post: Post, tempId?: string) => {
+    const normalized = normalizePost({ ...post, authorId: post.authorId || buildCurrentUserAuthor() });
+
+    setPosts((currentPosts) => {
+      const targetId = tempId || post._id;
+      const existingIndex = currentPosts.findIndex((p) => p._id === targetId);
+
+      if (existingIndex !== -1) {
+        const updatedPosts = [...currentPosts];
+        updatedPosts[existingIndex] = { ...normalized, _id: post._id };
+        return updatedPosts;
+      }
+
+      return [normalized, ...currentPosts];
+    });
+  };
+
+  const handlePostCreationFailed = (tempId: string) => {
+    setPosts((currentPosts) => currentPosts.filter((post) => post._id !== tempId));
   };
 
   const renderPost = ({ item }: { item: Post }) => {
@@ -104,7 +166,6 @@ export const ChatScreen = () => {
     
     const isLiked = item.likes?.includes(auth.currentUser?.uid || '');
 
-    // שליפת התוכן הנכון (תיקון הבאג)
     const contentText = (item as any).content || item.text;
 
     const renderLocation = () => {
@@ -126,12 +187,11 @@ export const ChatScreen = () => {
           </View>
           <View style={styles.meta}>
             <Text style={styles.author}>{author}</Text>
-            <Text style={styles.timestamp}>{formatTimestamp(item.createdAt)}</Text>
+            <Text style={styles.timestamp}>{formatRelativeTime(item.createdAt)}</Text>
           </View>
           {renderLocation()}
         </View>
 
-        {/* הצגת התוכן המתוקן */}
         <Text style={[styles.content, !hasImage && styles.contentWithoutImage]}>{contentText}</Text>
 
         {hasImage && (
@@ -204,7 +264,8 @@ export const ChatScreen = () => {
       <CreatePostModal
         visible={createModalVisible}
         onClose={() => setCreateModalVisible(false)}
-        onPostCreated={fetchPosts}
+        onPostCreated={handlePostCreated}
+        onPostCreationFailed={handlePostCreationFailed}
       />
 
       {commentsModalPost && (
