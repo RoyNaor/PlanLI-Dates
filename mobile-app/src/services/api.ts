@@ -52,6 +52,16 @@ class ApiServiceClass {
         });
         return this.handleResponse<T>(response);
     }
+
+    async put<T>(endpoint: string, data: any): Promise<T> {
+        const headers = await this.getHeaders();
+        const response = await fetch(`${BASE_URL}${endpoint}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse<T>(response);
+    }
 }
 
 export const ApiService = new ApiServiceClass();

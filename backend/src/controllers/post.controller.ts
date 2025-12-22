@@ -241,10 +241,24 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
   try {
     const posts = await Post.find()
       .sort({ createdAt: -1 })
-      .populate('authorId', 'displayName photoUrl')
+      .populate({
+        path: 'authorId',
+        select: 'displayName photoUrl uid',
+        model: 'User',
+        localField: 'authorId',
+        foreignField: 'uid',
+        justOne: true
+      })
       .populate({
         path: 'comments',
-        populate: { path: 'authorId', select: 'displayName photoUrl' }
+        populate: {
+          path: 'authorId',
+          select: 'displayName photoUrl uid',
+          model: 'User',
+          localField: 'authorId',
+          foreignField: 'uid',
+          justOne: true
+        }
       });
 
     res.json(posts);

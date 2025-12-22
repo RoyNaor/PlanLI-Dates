@@ -20,13 +20,16 @@ export interface Comment {
 export interface Post {
   _id: string;
   text: string;
-  
+
   // תיקון 1: שינוי מ-authorName לאובייקט מלא
-  authorId?: {
-    _id: string;
-    displayName: string;
-    photoUrl?: string;
-  };
+  authorId?:
+    | string
+    | {
+        _id?: string;
+        uid?: string;
+        displayName: string;
+        photoUrl?: string;
+      };
   
   createdAt?: string;
   imageUrl?: string | null;
