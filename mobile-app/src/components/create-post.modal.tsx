@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/styles';
 import { PostsService } from '../services/posts.service';
-import { LocationSearch, Location } from '../components/LocationSearch'; // ייבוא הקומפוננטה והטיפוס
+import { LocationSearch } from './location-search.component';
+import { Location } from '../types';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -27,7 +28,7 @@ interface CreatePostModalProps {
 }
 
 export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostModalProps) => {
-  const [text, setText] = useState('');
+  const [content, setContent] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,7 +47,7 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
   };
 
   const handleCreatePost = async () => {
-    if (!text.trim()) {
+    if (!content.trim()) {
       Alert.alert('שגיאה', 'יש לכתוב תוכן לפוסט');
       return;
     }
@@ -54,15 +55,10 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('text', text);
+      formData.append('content', content);
 
       if (selectedLocation) {
-        const locationData = {
-          name: selectedLocation.address,
-          lat: selectedLocation.lat,
-          long: selectedLocation.lng // שים לב שזה long ולא lng עבור הבקאנד שלך
-        };
-        formData.append('location', JSON.stringify(locationData));
+        formData.append('location', JSON.stringify(selectedLocation));
       }
 
       if (image) {
@@ -90,7 +86,7 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
   };
 
   const handleClose = () => {
-    setText('');
+    setContent('');
     setImage(null);
     setSelectedLocation(null);
     onClose();
@@ -119,8 +115,8 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
                   placeholder="שתף את הרעיון לדייט שלך..."
                   placeholderTextColor={colors.textLight}
                   multiline
-                  value={text}
-                  onChangeText={setText}
+                  value={content}
+                  onChangeText={setContent}
                   textAlignVertical="top"
                 />
 
@@ -128,11 +124,11 @@ export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostM
                 {/* שימוש ב-inline style ל-zIndex בדיוק כמו ב-StepLocation כדי להבטיח שהרשימה תצוף מעל הכל */}
                 <View style={{ zIndex: 2000, marginBottom: 15 }}>
                     <Text style={styles.sectionLabel}>מיקום (אופציונלי):</Text>
-                    <LocationSearch 
+                    <LocationSearch
                       placeholder="חפש מיקום..."
                       onLocationSelected={setSelectedLocation}
-                      zIndex={2000} 
-                      value={selectedLocation?.address}
+                      zIndex={2000}
+                      value={selectedLocation?.name}
                     />
                 </View>
                 {/* ------------------------------------------------ */}

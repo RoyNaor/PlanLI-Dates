@@ -13,8 +13,9 @@ import {
   Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, globalStyles } from '../theme/styles';
-import { Comment, Post, PostsService } from '../services/posts.service';
+import { colors } from '../theme/styles';
+import { PostsService } from '../services/posts.service';
+import { Comment, Post } from '../types';
 
 interface CommentsModalProps {
   visible: boolean;
@@ -59,26 +60,23 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
 
   const renderLocation = () => {
     if (!post?.location) return null;
-    let locationName = '';
-    
-    if (typeof post.location === 'object' && (post.location as any).name) {
-      locationName = (post.location as any).name;
-    } else if (typeof post.location === 'string') {
-      locationName = post.location;
-    }
-
-    return locationName ? <Text style={styles.postLocation}>📍 {locationName}</Text> : null;
+    return post.location.name ? <Text style={styles.postLocation}>📍 {post.location.name}</Text> : null;
   };
 
+  /**
+   * Recursively renders a comment thread up to the defined depth limit, preserving
+   * indentation and reply controls for nested conversations.
+   */
   const renderComment = (comment: Comment, depth = 1) => {
     const indent = depth > 1 ? (depth - 1) * 12 : 0;
     const canReply = depth < MAX_DEPTH;
     
-    const authorName = comment.authorId?.displayName || 'אורח';
+    const authorName = typeof comment.authorId === 'object' && comment.authorId?.displayName
+      ? comment.authorId.displayName
+      : 'אורח';
     const initial = authorName.slice(0, 1).toUpperCase();
 
-    // תיקון: שימוש ב-content או text (גיבוי)
-    const contentText = (comment as any).content || comment.text;
+    const contentText = comment.content;
 
     return (
       <View key={comment._id} style={[styles.commentContainer, { marginRight: indent }]}> 
@@ -110,8 +108,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, post, onC
     );
   };
 
-  // תיקון: שימוש ב-content או text עבור הפוסט הראשי
-  const postContent = post ? ((post as any).content || post.text) : '';
+  const postContent = post?.content || '';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>

@@ -1,45 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { auth } from '../config/firebase';
+import { Comment, Post } from '../types';
 
 const BASE_URL = 'http://10.100.102.16:3000/api'; // ה-IP שלך
-
-export interface Comment {
-  _id: string;
-  text: string; // שים לב: ב-DTO זה content, כאן זה text (תלוי איך המיפוי בשרת, נשאיר text כרגע)
-  authorId?: {
-    _id: string;
-    displayName: string;
-    photoUrl?: string;
-  };
-  createdAt?: string;
-  parentId?: string | null;
-  replies?: Comment[];
-}
-
-// עדכון ה-Interface כדי שיתאים למה שה-ChatScreen מחפש
-export interface Post {
-  _id: string;
-  text: string;
-  
-  // תיקון 1: שינוי מ-authorName לאובייקט מלא
-  authorId?: {
-    _id: string;
-    displayName: string;
-    photoUrl?: string;
-  };
-  
-  createdAt?: string;
-  imageUrl?: string | null;
-  
-  // תיקון 2: תמיכה גם בטקסט וגם באובייקט מיקום
-  location?: string | { name: string; lat: number; long: number };
-  
-  comments?: Comment[];
-  
-  // תיקון 3: הוספת מערך הלייקים (כדי שנדע אם הלב אדום)
-  likes?: string[]; 
-  likesCount?: number;
-}
 
 class PostsServiceClass {
   private api: AxiosInstance;
@@ -80,10 +43,10 @@ class PostsServiceClass {
     return data;
   }
 
-  async addComment(postId: string, text: string, parentId?: string): Promise<Comment> {
+  async addComment(postId: string, content: string, parentId?: string): Promise<Comment> {
     const headers = await this.getAuthHeaders();
-    // בשרת אנחנו מצפים ל-content, אז נמפה את text ל-content
-    const payload = parentId ? { content: text, parentId } : { content: text };
+    // בשרת אנחנו מצפים ל-content, אז נמפה את הטקסט לשדה הנכון
+    const payload = parentId ? { content, parentCommentId: parentId } : { content };
     const { data } = await this.api.post<Comment>(`/posts/${postId}/comments`, payload, { headers });
     return data;
   }

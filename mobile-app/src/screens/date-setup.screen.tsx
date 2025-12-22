@@ -12,8 +12,6 @@ import {
   FlatList 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; // <--- 1. הייבוא החדש
-import { LocationSearch, Location } from '../components/LocationSearch';
-import { ApiService } from '../services/api';
 import { colors } from '../theme/styles';
 import { getCenterPoint } from '../utils/geo'; 
 import { StepLocation } from '../components/StepLocation';
@@ -21,6 +19,7 @@ import { StepRadius } from '../components/StepRadius';
 import { StepVibe } from '../components/StepVibe';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { Location } from '../types';
 
 const { width } = Dimensions.get('window');
 

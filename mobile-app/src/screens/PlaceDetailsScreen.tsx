@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/styles';
 import { useIsRTL } from '../hooks/useIsRTL';
 import { AiRecommendation, PlaceDetails, PlanLiReview } from '../components/VenueCard';
-import { ApiService } from '../services/api';
+import { ApiService } from '../services/api.service';
 import { auth } from '../config/firebase';
 import HeaderImages from '../components/place-details/HeaderImages';
 import InfoTab from '../components/place-details/InfoTab';

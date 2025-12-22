@@ -34,7 +34,7 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
 
       const region = {
         latitude: centerToFocus.lat, 
-        longitude: centerToFocus.lng,
+        longitude: centerToFocus.long,
         latitudeDelta: delta,
         longitudeDelta: delta,
       };
@@ -63,9 +63,9 @@ export const DateResultsScreen = ({ route, navigation }: any) => {
         provider={PROVIDER_GOOGLE}
         style={styles.map}
       >
-        <Marker coordinate={{ latitude: l1.lat, longitude: l1.lng }} title="You" pinColor="blue" />
-        {l2 && <Marker coordinate={{ latitude: l2.lat, longitude: l2.lng }} title="Them" pinColor="red" />}
-        <Marker coordinate={{ latitude: lmid.lat, longitude: lmid.lng }} title="Midpoint" pinColor="yellow" />
+        <Marker coordinate={{ latitude: l1.lat, longitude: l1.long }} title="You" pinColor="blue" />
+        {l2 && <Marker coordinate={{ latitude: l2.lat, longitude: l2.long }} title="Them" pinColor="red" />}
+        <Marker coordinate={{ latitude: lmid.lat, longitude: lmid.long }} title="Midpoint" pinColor="yellow" />
 
         {aiSuggestions.map((item: any, index: number) => {
             if (!item.placeDetails?.geometry?.location) return null;

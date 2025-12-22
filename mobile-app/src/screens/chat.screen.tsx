@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, globalStyles } from '../theme/styles';
-import { CommentsModal } from '../components/CommentsModal';
-import { CreatePostModal } from '../components/CreatePostModal';
-import { Post, PostsService } from '../services/posts.service';
+import { CommentsModal } from '../components/comments.modal';
+import { CreatePostModal } from '../components/create-post.modal';
+import { PostsService } from '../services/posts.service';
+import { Post } from '../types';
 import { auth } from '../config/firebase';
 
 const formatTimestamp = (timestamp?: string) => {
@@ -52,7 +53,9 @@ export const ChatScreen = () => {
 
   const initials = useMemo(
     () => Object.fromEntries(posts.map((post) => {
-        const name = post.authorId?.displayName || 'אורח';
+        const name = typeof post.authorId === 'object' && post.authorId?.displayName
+          ? post.authorId.displayName
+          : 'אורח';
         return [name, name.slice(0, 1).toUpperCase()];
     })),
     [posts]
@@ -97,24 +100,20 @@ export const ChatScreen = () => {
   };
 
   const renderPost = ({ item }: { item: Post }) => {
-    const author = item.authorId?.displayName || 'אורח';
+    const author = typeof item.authorId === 'object' && item.authorId?.displayName
+      ? item.authorId.displayName
+      : 'אורח';
     
     const hasImage = Boolean(item.imageUrl);
     const commentsCount = item.comments?.length ?? 0;
     
     const isLiked = item.likes?.includes(auth.currentUser?.uid || '');
 
-    // שליפת התוכן הנכון (תיקון הבאג)
-    const contentText = (item as any).content || item.text;
+    const contentText = item.content;
 
     const renderLocation = () => {
       if (!item.location) return null;
-      let locationName = '';
-      if (typeof item.location === 'object' && (item.location as any).name) {
-        locationName = (item.location as any).name;
-      } else if (typeof item.location === 'string') {
-        locationName = item.location;
-      }
+      const locationName = item.location.name;
       return locationName ? <Text style={styles.location}>{locationName}</Text> : null;
     };
 

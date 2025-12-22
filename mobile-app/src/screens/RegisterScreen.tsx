@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
-import { ApiService } from '../services/api';
+import { ApiService } from '../services/api.service';
 import { colors, globalStyles } from '../theme/styles';
 import { useIsRTL } from '../hooks/useIsRTL';
 

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { ApiService } from '../services/api';
+import { ApiService } from '../services/api.service';
 import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 

@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { DateSetupScreen } from '../screens/DateSetupScreen';
+import { DateSetupScreen } from '../screens/date-setup.screen';
 import { SavedDatesScreen } from '../screens/SavedDatesScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { ChatScreen } from '../screens/ChatScreen'; // <--- 1. ייבוא חדש
+import { ChatScreen } from '../screens/chat.screen'; // <--- 1. ייבוא חדש
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/styles';
 import { Platform } from 'react-native';

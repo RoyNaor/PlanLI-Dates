@@ -3,12 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
-
-export interface Location {
-  lat: number;
-  lng: number;
-  address: string;
-}
+import { Location } from '../types';
 
 interface Props {
   placeholder: string;
@@ -40,9 +35,9 @@ export const LocationSearch = ({ placeholder, onLocationSelected, zIndex = 1, va
         onPress={(data, details = null) => {
           if (details) {
             onLocationSelected({
+              name: data.description,
               lat: details.geometry.location.lat,
-              lng: details.geometry.location.lng,
-              address: data.description,
+              long: details.geometry.location.lng,
             });
           }
         }}
