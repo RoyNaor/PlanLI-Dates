@@ -1,92 +1,106 @@
-import React, { useMemo, useState } from 'react';
-import { FlatList, Image, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // שים לב לשינוי הזה
-import { LinearGradient } from 'expo-linear-gradient'; // הוספת הגרדיאנט
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, globalStyles } from '../theme/styles';
+import { CommentsModal } from '../components/CommentsModal';
+import { CreatePostModal } from '../components/CreatePostModal';
+import { Post, PostsService } from '../services/posts.service';
 
-interface PostCard {
-  id: string;
-  author: string;
-  timeAgo: string;
-  content: string;
-  imageUrl?: string;
-  likes: number;
-  comments: number;
-  location?: string;
-}
+const formatTimestamp = (timestamp?: string) => {
+  if (!timestamp) return '';
+  try {
+    return new Date(timestamp).toLocaleString();
+  } catch (error) {
+    return '';
+  }
+};
 
 export const ChatScreen = () => {
-  const [posts] = useState<PostCard[]>([
-    {
-      id: '1',
-      author: 'Maya',
-      timeAgo: 'לפני שעה',
-      content: 'טיול בשקיעה בטיילת וצילום זוגי קטן 📸',
-      imageUrl: '',
-      likes: 24,
-      comments: 6,
-      location: 'תל אביב - הטיילת'
-    },
-    {
-      id: '2',
-      author: 'Noam',
-      timeAgo: 'לפני 3 שעות',
-      content: 'המלצה חמה: קפה בוטיק עם מאפים מדהימים ברמת השרון ☕🥐',
-      likes: 12,
-      comments: 2
-    },
-    {
-      id: '3',
-      author: 'Daria',
-      timeAgo: 'אתמול',
-      content: 'פיקניק ערב בפארק הירקון + מוזיקה חיה של חברים 🎶',
-      imageUrl: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1',
-      likes: 41,
-      comments: 9,
-      location: 'פארק הירקון'
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [commentsModalPost, setCommentsModalPost] = useState<Post | null>(null);
+
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await PostsService.getAllPosts();
+      setPosts(data);
+    } catch (error) {
+      console.error('Failed to load posts', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  ]);
+  }, []);
 
-  const initials = useMemo(() =>
-    Object.fromEntries(posts.map((post) => [post.author, post.author.slice(0, 1).toUpperCase()])),
-  [posts]);
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
-  const handleAddPost = () => {
-    console.log('Navigate to Add Post form');
+  useEffect(() => {
+    if (!commentsModalPost) return;
+
+    const updated = posts.find((post) => post._id === commentsModalPost._id);
+    if (updated && updated !== commentsModalPost) {
+      setCommentsModalPost(updated);
+    }
+  }, [posts, commentsModalPost]);
+
+  const initials = useMemo(
+    () => Object.fromEntries(posts.map((post) => [post.authorName || 'אורח', (post.authorName || 'א')[0]?.toUpperCase()])),
+    [posts]
+  );
+
+  const handleOpenComments = (post: Post) => {
+    setCommentsModalPost(post);
   };
 
-  const renderPost = ({ item }: { item: PostCard }) => (
-    <View style={[styles.card, globalStyles.shadow]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials[item.author]}</Text>
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchPosts();
+  }, [fetchPosts]);
+
+  const renderPost = ({ item }: { item: Post }) => {
+    const author = item.authorName || 'אורח';
+    const hasImage = Boolean(item.imageUrl);
+    const commentsCount = item.comments?.length ?? 0;
+
+    return (
+      <View style={[styles.card, globalStyles.shadow]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials[author] || author.slice(0, 1).toUpperCase()}</Text>
+          </View>
+          <View style={styles.meta}>
+            <Text style={styles.author}>{author}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(item.createdAt)}</Text>
+          </View>
+          {item.location && <Text style={styles.location}>{item.location}</Text>}
         </View>
-        <View style={styles.meta}>
-          <Text style={styles.author}>{item.author}</Text>
-          <Text style={styles.timestamp}>{item.timeAgo}</Text>
+
+        <Text style={[styles.content, !hasImage && styles.contentWithoutImage]}>{item.text}</Text>
+
+        {hasImage && (
+          <Image source={{ uri: item.imageUrl as string }} style={styles.image} resizeMode="cover" />
+        )}
+
+        <View style={[styles.actions, !hasImage && styles.actionsTight]}>
+          <View style={styles.actionItem}>
+            <Ionicons name="heart-outline" size={20} color={colors.text} />
+            <Text style={styles.actionLabel}>{item.likesCount ?? 0}</Text>
+          </View>
+          <TouchableOpacity style={styles.actionItem} onPress={() => handleOpenComments(item)}>
+            <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+            <Text style={styles.actionLabel}>{commentsCount}</Text>
+          </TouchableOpacity>
         </View>
-        {item.location && <Text style={styles.location}>{item.location}</Text>}
       </View>
-
-      <Text style={styles.content}>{item.content}</Text>
-
-      {item.imageUrl && (
-        <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
-      )}
-
-      <View style={styles.actions}>
-        <View style={styles.actionItem}>
-          <Ionicons name="heart-outline" size={20} color={colors.text} />
-          <Text style={styles.actionLabel}>{item.likes}</Text>
-        </View>
-        <View style={styles.actionItem}>
-          <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
-          <Text style={styles.actionLabel}>{item.comments}</Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -99,18 +113,42 @@ export const ChatScreen = () => {
         <Text style={styles.headerTitle}> PlanLI Dates </Text>
       </LinearGradient>
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loaderWrapper}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item._id}
+          renderItem={renderPost}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListEmptyComponent={<Text style={styles.emptyText}>אין פוסטים להצגה כרגע.</Text>}
+        />
+      )}
 
-      <TouchableOpacity style={[styles.fab, globalStyles.shadow]} onPress={handleAddPost}>
+      <TouchableOpacity
+        style={[styles.fab, globalStyles.shadow]}
+        onPress={() => setCreateModalVisible(true)}
+      >
         <Ionicons name="add" size={28} color="#fff" />
         <Text style={styles.fabLabel}>הוסף פוסט</Text>
       </TouchableOpacity>
+
+      <CreatePostModal
+        visible={createModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+        onPostCreated={fetchPosts}
+      />
+
+      <CommentsModal
+        visible={Boolean(commentsModalPost)}
+        post={commentsModalPost}
+        onClose={() => setCommentsModalPost(null)}
+        onRefresh={fetchPosts}
+      />
     </SafeAreaView>
   );
 };
@@ -119,39 +157,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: 16 
+    paddingHorizontal: 16,
   },
-  
+
   header: {
     borderRadius: 18,
     paddingVertical: 20,
     marginBottom: 12,
-    marginTop: 10, 
+    marginTop: 10,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#fff',
-    textAlign: 'center'
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)', 
-    marginTop: 4,
     textAlign: 'center',
-    fontWeight: '500'
   },
 
-  /* List & Card Styles */
   listContent: {
     paddingBottom: 120,
-    paddingTop: 4 
+    paddingTop: 4,
   },
   card: {
     ...globalStyles.card,
-    marginBottom: 16, 
+    marginBottom: 16,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: {
@@ -160,7 +190,7 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     backgroundColor: colors.secondary,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   meta: { marginLeft: 12, flex: 1 },
@@ -168,12 +198,13 @@ const styles = StyleSheet.create({
   timestamp: { color: colors.textLight, fontSize: 12, marginTop: 2 },
   location: { color: colors.primary, fontWeight: '600', fontSize: 12 },
   content: { color: colors.text, fontSize: 15, lineHeight: 21 },
+  contentWithoutImage: { marginTop: 4 },
   image: { marginTop: 10, borderRadius: 12, width: '100%', height: 220 },
   actions: { flexDirection: 'row', marginTop: 12 },
+  actionsTight: { marginTop: 8 },
   actionItem: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
   actionLabel: { marginLeft: 6, color: colors.text },
-  
-  /* FAB Styles */
+
   fab: {
     position: 'absolute',
     right: 20,
@@ -183,7 +214,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  fabLabel: { color: '#fff', marginLeft: 8, fontWeight: 'bold' }
+  fabLabel: { color: '#fff', marginLeft: 8, fontWeight: 'bold' },
+
+  loaderWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    color: colors.textLight,
+  },
 });
