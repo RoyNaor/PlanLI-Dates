@@ -1,205 +1,268 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import React, { useState } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { colors } from '../theme/styles';
 import { PostsService } from '../services/posts.service';
-import { colors, globalStyles } from '../theme/styles';
+import { LocationSearch, Location } from '../components/LocationSearch'; // ייבוא הקומפוננטה והטיפוס
 
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
-  onPostCreated: () => Promise<void> | void;
+  onPostCreated: () => void;
 }
 
-export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose, onPostCreated }) => {
+export const CreatePostModal = ({ visible, onClose, onPostCreated }: CreatePostModalProps) => {
   const [text, setText] = useState('');
-  const [location, setLocation] = useState('');
-  const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const imagePreview = useMemo(() => {
-    if (!selectedImage) return null;
-    const uri = selectedImage.uri;
-    const name = selectedImage.fileName || 'photo.jpg';
-    const type = selectedImage.mimeType || 'image/jpeg';
-
-    return { uri, name, type };
-  }, [selectedImage]);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      console.warn('Permission to access media library was denied');
-      return;
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      aspect: [4, 3],
+      quality: 0.7,
     });
 
-    if (!result.canceled && result.assets.length > 0) {
-      setSelectedImage(result.assets[0]);
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleCreatePost = async () => {
     if (!text.trim()) {
+      Alert.alert('שגיאה', 'יש לכתוב תוכן לפוסט');
       return;
     }
 
+    setLoading(true);
     try {
-      setSubmitting(true);
       const formData = new FormData();
-      formData.append('text', text.trim());
-      if (location.trim()) {
-        formData.append('location', location.trim());
+      formData.append('text', text);
+
+      if (selectedLocation) {
+        const locationData = {
+          name: selectedLocation.address,
+          lat: selectedLocation.lat,
+          long: selectedLocation.lng // שים לב שזה long ולא lng עבור הבקאנד שלך
+        };
+        formData.append('location', JSON.stringify(locationData));
       }
 
-      if (imagePreview) {
+      if (image) {
+        const filename = image.split('/').pop() || 'upload.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
         formData.append('image', {
-          uri: imagePreview.uri,
-          name: imagePreview.name,
-          type: imagePreview.type,
-        } as unknown as Blob);
+          uri: image,
+          name: filename,
+          type,
+        } as any);
       }
 
       await PostsService.createPost(formData);
-      setText('');
-      setLocation('');
-      setSelectedImage(null);
-      onClose();
-      await onPostCreated();
+      
+      handleClose(); // איפוס וסגירה
+      onPostCreated();
     } catch (error) {
-      console.error('Failed to create post', error);
+      console.error('Failed to create post:', error);
+      Alert.alert('שגיאה', 'לא ניתן ליצור את הפוסט כרגע');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    setText('');
+    setImage(null);
+    setSelectedLocation(null);
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.container, globalStyles.shadow]}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>צור פוסט חדש</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>תוכן הפוסט *</Text>
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="שתף את הרעיון או החוויה שלך"
-            placeholderTextColor={colors.textLight}
-            multiline
-          />
-
-          <Text style={styles.label}>מיקום (לא חובה)</Text>
-          <TextInput
-            style={styles.input}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="איפה זה קורה?"
-            placeholderTextColor={colors.textLight}
-          />
-
-          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-            <Ionicons name="image-outline" size={20} color={colors.primary} />
-            <Text style={styles.imagePickerText}>בחר תמונה (אופציונלי)</Text>
-          </TouchableOpacity>
-
-          {selectedImage && (
-            <Image source={{ uri: selectedImage.uri }} style={styles.preview} resizeMode="cover" />
-          )}
-
-          <TouchableOpacity
-            style={[styles.submitButton, !text.trim() && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting || !text.trim()}
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
           >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>פרסם</Text>
-            )}
-          </TouchableOpacity>
+            <View style={styles.modalContent}>
+              <View style={styles.header}>
+                <TouchableOpacity onPress={handleClose}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.title}>פוסט חדש</Text>
+                <View style={{ width: 24 }} />
+              </View>
+
+              <View style={styles.formContent}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="שתף את הרעיון לדייט שלך..."
+                  placeholderTextColor={colors.textLight}
+                  multiline
+                  value={text}
+                  onChangeText={setText}
+                  textAlignVertical="top"
+                />
+
+                {/* --- התיקון כאן: שימוש במבנה של StepLocation --- */}
+                {/* שימוש ב-inline style ל-zIndex בדיוק כמו ב-StepLocation כדי להבטיח שהרשימה תצוף מעל הכל */}
+                <View style={{ zIndex: 2000, marginBottom: 15 }}>
+                    <Text style={styles.sectionLabel}>מיקום (אופציונלי):</Text>
+                    <LocationSearch 
+                      placeholder="חפש מיקום..."
+                      onLocationSelected={setSelectedLocation}
+                      zIndex={2000} 
+                      value={selectedLocation?.address}
+                    />
+                </View>
+                {/* ------------------------------------------------ */}
+
+                {image ? (
+                  <View style={styles.imagePreviewContainer}>
+                    <Image source={{ uri: image }} style={styles.imagePreview} />
+                    <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
+                      <Ionicons name="close-circle" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+                    <Ionicons name="image-outline" size={24} color={colors.primary} />
+                    <Text style={styles.imageButtonText}>הוסף תמונה</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitButton, loading && styles.disabledButton]} 
+                onPress={handleCreatePost}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>פרסם</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  container: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 18,
+  keyboardView: {
+    width: '100%',
+    height: '90%',
   },
-  headerRow: {
+  modalContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 20,
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
   },
-  label: {
-    fontSize: 13,
-    color: colors.textLight,
-    marginBottom: 6,
-    marginTop: 8,
+  formContent: {
+    flex: 1,
   },
   input: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 12,
-    minHeight: 48,
+    minHeight: 100,
+    fontSize: 16,
     color: colors.text,
-    textAlignVertical: 'top',
+    textAlign: 'right',
+    marginBottom: 20,
   },
-  imagePicker: {
-    marginTop: 12,
+  sectionLabel: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  // הסרתי את styles.locationContainer כי השתמשנו ב-inline style כמו ב-StepLocation
+  imageButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    marginTop: 10,
+    // הורדתי את zIndex מפה כדי שלא יתחרה עם המיקום
   },
-  imagePickerText: {
+  imageButtonText: {
     marginLeft: 8,
     color: colors.primary,
     fontWeight: '600',
   },
-  preview: {
-    height: 160,
-    borderRadius: 12,
+  imagePreviewContainer: {
     marginTop: 10,
+    position: 'relative',
+    // הורדתי את zIndex מפה כדי שלא יתחרה עם המיקום
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
   },
   submitButton: {
     backgroundColor: colors.primary,
+    padding: 16,
     borderRadius: 12,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
   },
-  submitButtonDisabled: {
+  disabledButton: {
     opacity: 0.7,
   },
   submitButtonText: {
     color: '#fff',
-    fontWeight: '700',
     fontSize: 16,
+    fontWeight: 'bold',
   },
 });
-

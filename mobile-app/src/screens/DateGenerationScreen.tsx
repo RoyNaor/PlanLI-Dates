@@ -92,12 +92,15 @@ export const DateGenerationScreen = ({ route, navigation }: any) => {
 
       const [_, result] = await Promise.all([minWaitTime, apiCall]);
 
+      const response: any = result;
+      const payloadResult = response?.data ?? response;
+
       navigation.dispatch(
         CommonActions.reset({
           index: 1,
           routes: [
             { name: 'MainTabs' },
-            { name: 'DateResults', params: { result: result.data || result } },
+            { name: 'DateResults', params: { result: payloadResult } },
           ],
         })
       );

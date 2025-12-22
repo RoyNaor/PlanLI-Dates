@@ -1,25 +1,43 @@
 import axios, { AxiosInstance } from 'axios';
 import { auth } from '../config/firebase';
 
-const BASE_URL = 'http://172.20.10.2:3000/api';
+const BASE_URL = 'http://10.100.102.16:3000/api'; // ה-IP שלך
 
 export interface Comment {
   _id: string;
-  text: string;
-  authorName?: string;
+  text: string; // שים לב: ב-DTO זה content, כאן זה text (תלוי איך המיפוי בשרת, נשאיר text כרגע)
+  authorId?: {
+    _id: string;
+    displayName: string;
+    photoUrl?: string;
+  };
   createdAt?: string;
   parentId?: string | null;
   replies?: Comment[];
 }
 
+// עדכון ה-Interface כדי שיתאים למה שה-ChatScreen מחפש
 export interface Post {
   _id: string;
   text: string;
-  authorName?: string;
+  
+  // תיקון 1: שינוי מ-authorName לאובייקט מלא
+  authorId?: {
+    _id: string;
+    displayName: string;
+    photoUrl?: string;
+  };
+  
   createdAt?: string;
   imageUrl?: string | null;
-  location?: string;
+  
+  // תיקון 2: תמיכה גם בטקסט וגם באובייקט מיקום
+  location?: string | { name: string; lat: number; long: number };
+  
   comments?: Comment[];
+  
+  // תיקון 3: הוספת מערך הלייקים (כדי שנדע אם הלב אדום)
+  likes?: string[]; 
   likesCount?: number;
 }
 
@@ -64,8 +82,17 @@ class PostsServiceClass {
 
   async addComment(postId: string, text: string, parentId?: string): Promise<Comment> {
     const headers = await this.getAuthHeaders();
-    const payload = parentId ? { text, parentId } : { text };
+    // בשרת אנחנו מצפים ל-content, אז נמפה את text ל-content
+    const payload = parentId ? { content: text, parentId } : { content: text };
     const { data } = await this.api.post<Comment>(`/posts/${postId}/comments`, payload, { headers });
+    return data;
+  }
+
+  // תיקון 4: הוספת הפונקציה החסרה ללייקים
+  async togglePostLike(postId: string): Promise<any> {
+    const headers = await this.getAuthHeaders();
+    // אין צורך ב-body, רק ב-URL
+    const { data } = await this.api.post(`/posts/${postId}/like`, {}, { headers });
     return data;
   }
 }

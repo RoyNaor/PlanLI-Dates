@@ -12,6 +12,7 @@ export interface IPost extends Document {
   imageUrl?: string;
   location?: IPostLocation;
   likes: string[];
+  comments: mongoose.Types.ObjectId[]; 
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,7 +28,9 @@ const PostSchema = new Schema<IPost>({
   content: { type: String, required: true },
   imageUrl: { type: String },
   location: { type: PostLocationSchema, required: false },
-  likes: { type: [String], default: [] }
+  likes: { type: [String], default: [] },
+  
+  comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }] 
 }, {
   timestamps: true
 });
