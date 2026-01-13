@@ -50,7 +50,6 @@ export const searchSimilarPlaces = async (
         const distKm = calculateDistanceKm(center, { lat: placeLat, lng: placeLng });
         const distMeters = distKm * 1000;
         
-        // --- באפר חכם: מינימום 3 ק"מ או כפול מהרדיוס ---
         const effectiveRadius = Math.max(radiusMeter * 2, 3000); 
         
         return distMeters <= effectiveRadius;
