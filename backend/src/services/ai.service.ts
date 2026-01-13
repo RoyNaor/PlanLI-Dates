@@ -28,7 +28,6 @@ export interface AiRecommendation {
   };
 }
 
-// פונקציית עזר לבניית לינק לתמונה
 const buildPhotoUrl = (photoRef?: string): string | null => {
   if (!photoRef || !GOOGLE_KEY) return null;
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${GOOGLE_KEY}`;
@@ -44,13 +43,11 @@ export const generateDateIdeas = async (
     console.log('🤔 AI Agent started...');
     console.log(`📍 Input: ${preferences}`);
 
-    // 1. שלב ראשון: בדיקה בזיכרון (Pinecone)
     const cachedPlaces = await searchSimilarPlaces(preferences, center, radius);
 
     const cuisineKeywords = extractCuisineKeywords(preferences);
     let validCachedPlaces: any[] = cachedPlaces;
 
-    // אם זוהה סוג אוכל ספציפי - ננסה לסנן לפי זה
     if (cuisineKeywords.length > 0) {
       console.log(
         `🔎 Filtering Cache for specific cuisine: ${cuisineKeywords.join(', ')}`
@@ -65,28 +62,23 @@ export const generateDateIdeas = async (
       );
 
       if (filtered.length > 0) {
-        // יש התאמות למטבח - משתמשים בהן
         validCachedPlaces = filtered;
       } else {
-        // אין התאמות – לא זורקים את כל ה-cache, נשארים עם כל מה שחזר
         console.log(
           `⚠️ Cuisine filter returned 0 results – falling back to all cached places.`
         );
       }
     }
 
-    // מיון לפי matchScore מהגבוה לנמוך
     validCachedPlaces = [...validCachedPlaces].sort(
       (a, b) => (b.matchScore || 0) - (a.matchScore || 0)
     );
 
-    // מיפוי ממקומות ב-Pinecone ל-AiRecommendation
     const cachedRecommendations: AiRecommendation[] = validCachedPlaces
-      .slice(0, 6) // עד 6 מה-cache
+      .slice(0, 6) 
       .map((place: any) => {
-        // נורמליזציה של הציון – שלא תקבל 40 מבאס
         const rawScore = Math.round(place.matchScore || 85);
-        const normalizedScore = Math.max(70, Math.min(rawScore, 99)); // בין 70 ל-99
+        const normalizedScore = Math.max(70, Math.min(rawScore, 99)); 
 
         return {
           name: place.name,
@@ -112,7 +104,6 @@ export const generateDateIdeas = async (
         };
       });
 
-    // אם יש 6 מה-cache – מעולה, לא צריך גוגל
     if (cachedRecommendations.length === 6) {
       console.log(
         `✨ FULL CACHE HIT! Using 6 places from Pinecone (out of ${validCachedPlaces.length} valid, ${cachedPlaces.length} total).`
@@ -120,24 +111,20 @@ export const generateDateIdeas = async (
       return cachedRecommendations;
     }
 
-    // אם אין בכלל כלום ב-cache – זה MISS מלא
     if (cachedRecommendations.length === 0) {
       console.log(
         '🌍 CACHE MISS (no valid cached places). Calling Google Maps API...'
       );
     } else {
-      // יש קצת מה-cache, אבל פחות מ-6 – נשלים מגוגל
       console.log(
         `🌍 PARTIAL CACHE HIT (${cachedRecommendations.length} from Pinecone). Calling Google Maps API to complete to 6...`
       );
     }
 
-    // --- שלב שני: Google Maps API להשלמה / גיבוי ---
 
     const googleQuery = await generateGoogleQuery(preferences);
     const googleResults = await searchGooglePlaces(googleQuery, center, radius);
 
-    // נביא יותר מתוצאות 6 כדי שיהיה ממה לבחור ולא לדפוק דופליקציות
     const topResults = googleResults.slice(0, 10);
 
     const processedGoogleResults: AiRecommendation[] = await Promise.all(
@@ -147,7 +134,6 @@ export const generateDateIdeas = async (
           preferences
         );
 
-        // שומרים לשימוש עתידי ב-Pinecone
         await savePlaceToPinecone(place, richDescription);
 
         const photoRefs =
@@ -171,7 +157,6 @@ export const generateDateIdeas = async (
       })
     );
 
-    // הסרת כפילויות לפי place_id
     const existingIds = new Set(
       cachedRecommendations
         .map((r) => r.placeDetails?.place_id)
@@ -184,13 +169,11 @@ export const generateDateIdeas = async (
         !existingIds.has(r.placeDetails.place_id)
     );
 
-    // מיזוג cache + google, עד 6 סופיים
     const finalRecommendations = [
       ...cachedRecommendations,
       ...googleWithoutDuplicates
     ].slice(0, 6);
 
-    // Enrich with PlanLi stats
     const placeIds = finalRecommendations.map(r => r.placeDetails?.place_id).filter(Boolean);
     const statsList = await PlaceStats.find({ googlePlaceId: { $in: placeIds } });
 
@@ -269,7 +252,7 @@ function matchesCuisine(place: any, cuisineKeywords: string[]): boolean {
     place.richDescription ?? ''
   } ${place.vicinity ?? ''}`.toLowerCase();
 
-  const tokens = placeText.split(/[^a-zA-Z]+/).filter(Boolean); // ["taizu","asian","restaurant",...]
+  const tokens = placeText.split(/[^a-zA-Z]+/).filter(Boolean); 
 
   return cuisineKeywords.some((kw) => tokens.includes(kw));
 }
