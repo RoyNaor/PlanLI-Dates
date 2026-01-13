@@ -1,8 +1,5 @@
 # 🏗️ PROJECT SPECIFICATION: PlanLI Dates (PLD)
 
-> **FOR AI AGENTS:** This file is the Source of Truth for the PlanLI Dates project. 
-> Refer to this file for architecture, tech stack, data models, and the development roadmap.
-
 ---
 
 ## 1. Project Overview
