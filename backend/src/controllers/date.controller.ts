@@ -12,20 +12,15 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
       radius?: number; 
     };
 
-    // 1. ולידציה בסיסית
-    // הערה: שיניתי את הבדיקה של l2, כי ב-NEAR_ME לא תמיד חייבים l2 (אבל לרוב האפליקציה שולחת)
     if (!l1 || typeof l1.lat !== 'number' || typeof l1.lng !== 'number') {
       res.status(400).json({ success: false, message: 'Invalid coordinates provided for User 1 (l1).' });
       return;
     }
 
-    // 2. חישובים גיאוגרפיים בסיסיים
-    // אם אין l2, נתייחס ל-l1 כנקודת האמצע הזמנית
     const safeL2 = l2 || l1; 
     const midPoint = calculateMidpoint(l1, safeL2);
     const distanceKm = calculateDistanceKm(l1, safeL2);
 
-    // 3. קביעת מרכז החיפוש (Search Center)
     let searchCenter: Coordinates;
 
     if (strategy === 'NEAR_ME') {
@@ -37,16 +32,13 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
       searchCenter = midPoint;
     }
 
-    // 4. קביעת רדיוס החיפוש
     let searchRadiusMeters: number;
     if (radius && typeof radius === 'number') {
         searchRadiusMeters = radius;
     } else {
-        // לוגיקת ברירת מחדל חכמה
         if (strategy === 'NEAR_ME' || strategy === 'NEAR_THEM') {
-            searchRadiusMeters = 2000; // 2 ק"מ בעיר
+            searchRadiusMeters = 2000; 
         } else {
-            // באמצע הדרך לפעמים צריך רדיוס גדול יותר אם זה רחוק
             searchRadiusMeters = Math.max(1500, (distanceKm * 1000) * 0.15);
         }
     }
@@ -54,8 +46,6 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
 
     console.log(`🚀 Controller: Searching around [${searchCenter.lat}, ${searchCenter.lng}] with radius ${searchRadiusMeters}m`);
 
-    // 5. קריאה לסוכן החכם (AI Agent) 🧠
-    // הפונקציה הזו עכשיו מחזירה את הכל כולל הכל (Pinecone / Google / Details)
     const aiSuggestions = await generateDateIdeas(
         searchCenter, 
         preferences || '', 
@@ -63,18 +53,17 @@ export const calculateDateLogic = async (req: Request, res: Response): Promise<v
         searchRadiusMeters
     );
 
-    // 6. החזרת תשובה נקייה
     res.status(200).json({
       success: true,
       data: {
         l1,
         l2: safeL2,
-        lmid: midPoint,         // הפין הצהוב למפה
+        lmid: midPoint,         
         distanceKm,
         strategy,
-        focusPoint: searchCenter, // המיקום שהמפה תתמקד בו
+        focusPoint: searchCenter, 
         searchRadiusMeters,
-        aiSuggestions: aiSuggestions // זה כבר מכיל את ה-placeDetails וה-Category
+        aiSuggestions: aiSuggestions 
       }
     });
 
