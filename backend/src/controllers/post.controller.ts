@@ -9,7 +9,6 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
   const authReq = req as AuthRequest & { file?: Express.Multer.File };
   const user = authReq.user;
 
-  // תיקון 1: קליטת text או content
   const { content, text, imageUrl, location } = authReq.body; 
   const finalContent = content || text;
 
@@ -23,13 +22,11 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  // --- תיקון 2: טיפול במיקום (מונע קריסה) ---
   let parsedLocation = location;
   if (typeof location === 'string') {
     try {
       parsedLocation = JSON.parse(location);
     } catch (error) {
-      // אם זה נכשל (סתם טקסט), אנחנו עוטפים אותו באובייקט ידנית כדי שהשרת לא יקרוס
       parsedLocation = { name: location, lat: 0, long: 0 }; 
     }
   }
@@ -93,8 +90,6 @@ export const addCommentToPost = async (req: Request, res: Response): Promise<voi
 
     await comment.save();
 
-    // --- תיקון 3: חיבור התגובה לפוסט (קריטי!) ---
-    // בלי השורה הזו, התגובה קיימת אבל הפוסט לא "יודע" עליה
     post.comments.push(comment._id as any);
     await post.save();
     // ------------------------------------------
@@ -106,7 +101,6 @@ export const addCommentToPost = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// שאר הפונקציות (replyToComment, togglePostLike, toggleCommentLike, getAllPosts) נשארו אותו דבר כי הן היו תקינות
 export const replyToComment = async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const user = authReq.user;
