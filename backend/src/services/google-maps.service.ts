@@ -55,9 +55,7 @@ export const getGooglePlaceDetails = async (placeId: string): Promise<GooglePlac
     }
 };
 
-/**
- * פונה לגוגל ומחזיר רשימה של מקומות רלוונטיים
- */
+
 export const searchGooglePlaces = async (
     query: string, 
     location: { lat: number, lng: number }, 
@@ -87,8 +85,6 @@ export const searchGooglePlaces = async (
 
         const results = response.data.results as GooglePlace[];
         
-        // סינון ראשוני: מעיפים דברים שלא קשורים לבילוי
-        // רשימה שחורה מורחבת - כל סוג עסק שלא מתאים לדייט
         const unwantedTypes = [
             'hospital', 'doctor', 'dentist', 'physiotherapist', 'pharmacy', 'veterinary_care', 
             'police', 'fire_station', 'funeral_home', 'cemetery',
@@ -115,7 +111,6 @@ export const searchGooglePlaces = async (
             'school', 'primary_school', 'secondary_school', 'university'
         ];
 
-        // ובתוך הפונקציה searchGooglePlaces:
         const filtered = results.filter(p => !p.types?.some(t => unwantedTypes.includes(t)));
 
         console.log(`✅ Google returned ${filtered.length} places (after filtering).`);
